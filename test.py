@@ -33,7 +33,6 @@ def load_model(model_name = 'meta-math/MetaMath-Mistral-7B', args = None):
             download_dir = "/network/scratch/k/khang.ngo/cache", 
             gpu_memory_utilization=0.5, 
             enforce_eager=True)
-            #token = "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") 
     tokenizer = llm.get_tokenizer()
     yes_token_id = tokenizer.convert_tokens_to_ids('Yes')
     no_token_id = tokenizer.convert_tokens_to_ids('No')
