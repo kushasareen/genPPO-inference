@@ -1,6 +1,6 @@
 #!/bin/bash
 
-input_path='/network/scratch/k/khang.ngo/gen_vineppo/data/gsm8k/test'
+input_path='/network/scratch/k/kusha.sareen/genPPO/data/gsm8k/test'
 policy_model='ReasoningMila/genppo_init_ckpt'
 device='cuda'
 

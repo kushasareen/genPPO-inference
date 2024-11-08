@@ -21,7 +21,7 @@ def load_model(model_name, args):
             dtype='float16',
             max_model_len=2048,
             tensor_parallel_size=1, 
-            download_dir = "/network/scratch/k/khang.ngo/cache",  ### change this to your directory
+            download_dir = "/network/scratch/k/kusha.sareen/cache",  ### change this to your directory
             gpu_memory_utilization=0.5, 
             enforce_eager=True) 
     tokenizer = llm.get_tokenizer()

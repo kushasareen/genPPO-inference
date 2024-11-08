@@ -6,7 +6,7 @@ from vllm import SamplingParams
 import numpy as np
 
 
-cache_dir = "/network/scratch/k/khang.ngo/cache"
+cache_dir = "/network/scratch/k/kusha.sareen/cache"
 
 class MathSphereRewardModel(torch.nn.Module):
     def __init__(self, args, tokenizer = None):

@@ -10,6 +10,7 @@ from verify_gsm8k import evaluate_predictions
 import time
 from datasets import Dataset
 from verify_gsm8k import extract_gold_answer_from_text
+from utils import get_search_tree_and_generator
 
 def load_dataset(args):
     dataset = Dataset.load_from_disk(args.input_path)
@@ -20,7 +21,7 @@ def load_model(model_name, args):
             dtype='float16',
             max_model_len=2048,
             tensor_parallel_size=1, 
-            download_dir = "/network/scratch/k/khang.ngo/cache", 
+            download_dir = "/network/scratch/k/kusha.sareen/cache", 
             gpu_memory_utilization=0.5, 
             enforce_eager=True) 
     tokenizer = llm.get_tokenizer()
@@ -33,10 +34,6 @@ def main(args):
     dataset = load_dataset(args)
     llm, sampling_params, stop_tokens = load_model(args.policy_model, args)
     reward_model = GenVinePPOVerifier(args, llm)
-
-    beam_size = 4
-    max_depth = 10
-    beam_width = 4
 
     all_gts = []
     all_preds = []
@@ -52,9 +49,8 @@ def main(args):
         prompt = "Problem:\n" + question + '\nSolution:\n'
         root = TreeNode(state = {'text' : prompt, 'logprob' : 0, 'token' : '', 'step_solution' : '', 'full_feedback' : ''}, 
                         score = 0, parent = None, depth = 0) 
-        node_generator = NodeGenerator(llm, reward_model, beam_size, sampling_params)
-        tree = BeamSearchTree(root=root, beam_width=beam_width)
-        top_nodes = tree.beam_search(generate_children=node_generator, max_depth=max_depth)
+        tree, node_generator = get_search_tree_and_generator(root, llm, reward_model, sampling_params, args)
+        top_nodes = tree.search(generate_children=node_generator, max_depth=args.max_depth)
         predictions = [node.state['text'] for node in top_nodes]
         all_preds.append(predictions)
         all_top_results.append(top_nodes[0])
@@ -88,10 +84,15 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input_path", type = str, default = '/network/scratch/k/khang.ngo/gen_vineppo/datasets/prm800k/prm800k/math_splits/test.jsonl')
-    parser.add_argument("--policy_model", type = str, default = 'peiyi9979/math-shepherd-mistral-7b-rl')
-    parser.add_argument("--reward_model", type = str, default = 'peiyi9979/math-shepherd-mistral-7b-prm')
+    parser.add_argument("--input_path", type = str, default = '/network/scratch/k/kusha.sareen/genPPO/data/gsm8k/test')
+    parser.add_argument("--policy_model", type = str, default = 'ReasoningMila/genppo_init_ckpt')
+    parser.add_argument("--reward_model", type = str, default = 'ReasoningMila/genppo_init_ckpt')
     parser.add_argument('--device', default="cuda")
+    parser.add_argument('--beam_size', type=int, default=4)
+    parser.add_argument('--max_depth', type=int, default=10)
+    parser.add_argument('--beam_width', type=int, default=4)
+    parser.add_argument('--n', type=int, default=4)
+    parser.add_argument('--search_algorithm', type=str, default='beamsearch')
 
     args = parser.parse_args()
 

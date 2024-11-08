@@ -1,15 +1,16 @@
 from tree import Tree, TreeNode
-from search_algorithms.beam_search import BeamSearchTree, RandomizedBeamSearch
+from search_algorithms.beam_search import BeamSearchTree
+from search_algorithms.best_of_n import BestOfNTree
 from typing import List, Callable, Any, Optional
 import random
 
-from visualizer import TreeVisualizer
+# from visualizer import TreeVisualizer
 
 # Example function to generate child nodes with random values
-def generate_children(node: TreeNode) -> List[TreeNode]:
+def generate_children(node: TreeNode, num_children = 1) -> List[TreeNode]:
     mutations = ['A', 'C', 'G', 'T']
     children = []
-    for _ in range(2):  # Generate 2 children for simplicity
+    for _ in range(num_children):  # Generate 2 children for simplicity
         text = node.state['text']
         pos = random.randint(0, len(text) - 1)
         new_text = list(text)
@@ -24,13 +25,14 @@ root_state = {'text' : "AAAA", 'logprob' : 0.0}
 root_node = TreeNode(state=root_state, score = 0.0)
 
 # Create the Beam Search Tree with a beam width of 3 and retaining 2 solutions
-beam_width = 3
-k_solutions = 2
-tree = RandomizedBeamSearch(root=root_node, beam_width=beam_width)
+beam_width = 10
+k_solutions = 5
+# tree = BeamSearchTree(root=root_node, beam_width=beam_width, top_k=k_solutions)
+tree = BestOfNTree(root=root_node, n=beam_width, top_k=k_solutions)
 
 # Perform Beam Search with a max depth of 3
-top_nodes = tree.beam_search(generate_children=generate_children, max_depth=3)
-
+# top_nodes = tree.beam_search(generate_children=generate_children, max_depth=5)
+top_nodes = tree.best_of_n(generate_children=generate_children, max_depth=5)
 
 print("Top-K Solutions:")
 for i, node in enumerate(top_nodes, 1):
@@ -39,3 +41,5 @@ for i, node in enumerate(top_nodes, 1):
         print(parent) 
     print()
 print()
+
+# breakpoint()  # To inspect the outputs
