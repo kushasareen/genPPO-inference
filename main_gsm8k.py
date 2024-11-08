@@ -1,6 +1,5 @@
 import argparse
 import os
-from vllm import LLM, SamplingParams
 import gc
 from generator import NodeGenerator
 from reward_model import GenVinePPOVerifier
@@ -8,36 +7,22 @@ from search_algorithms.beam_search import BeamSearchTree
 from tree import TreeNode
 from verify_gsm8k import evaluate_predictions
 import time
-from datasets import Dataset
 from verify_gsm8k import extract_gold_answer_from_text
-from utils import get_search_tree_and_generator
-
-def load_dataset(args):
-    dataset = Dataset.load_from_disk(args.input_path)
-    return dataset
-
-def load_model(model_name, args):
-    llm = LLM(model=model_name,
-            dtype='float16',
-            max_model_len=2048,
-            tensor_parallel_size=1, 
-            download_dir = "/network/scratch/k/kusha.sareen/cache", 
-            gpu_memory_utilization=0.5, 
-            enforce_eager=True) 
-    tokenizer = llm.get_tokenizer()
-    stop_words = [tokenizer.eos_token if tokenizer is not None and tokenizer.eos_token is not None else '</s>']
-    stop_words.append("\n")
-    sampling_params = SamplingParams(temperature=1.0, max_tokens=512, stop=stop_words)
-    return llm, sampling_params, stop_words
+from utils import get_search_tree_and_generator, load_dataset, load_model
+import asyncio
 
 def main(args):  
     dataset = load_dataset(args)
-    llm, sampling_params, stop_tokens = load_model(args.policy_model, args)
-    reward_model = GenVinePPOVerifier(args, llm)
+    llm, sampling_params, stop_tokens, tokenizer = load_model(args.policy_model, args)
+    reward_model = GenVinePPOVerifier(args, llm, tokenizer)
+    asyncio.run(run_inference(llm, reward_model, sampling_params, dataset, args))
 
+async def run_inference(llm, reward_model, sampling_params, dataset, args):
     all_gts = []
     all_preds = []
     all_top_results = []
+    tasks = []
+
 
     start = time.time()
     for i in range(len(dataset)):
@@ -50,37 +35,26 @@ def main(args):
         root = TreeNode(state = {'text' : prompt, 'logprob' : 0, 'token' : '', 'step_solution' : '', 'full_feedback' : ''}, 
                         score = 0, parent = None, depth = 0) 
         tree, node_generator = get_search_tree_and_generator(root, llm, reward_model, sampling_params, args)
-        top_nodes = tree.search(generate_children=node_generator, max_depth=args.max_depth)
+
+        tasks.append(asyncio.create_task(tree.search(generate_children=node_generator, max_depth=args.max_depth)))
+        gc.collect()
+
+
+    all_top_nodes = [await task for task in tasks]
+
+    for top_nodes in all_top_nodes:
         predictions = [node.state['text'] for node in top_nodes]
         all_preds.append(predictions)
         all_top_results.append(top_nodes[0])
-        gc.collect()
+
     end = time.time()
 
     print("\n**** Evaluating ****")
     results = evaluate_predictions(all_preds, dataset)
-    #print("*" * 10)
 
     print("\n**** Results ****")
     print(results)
     print("Time: ", end - start)
-
-    # print("\n*** Predicted solutions ***")
-    # for i, predictions in enumerate(all_preds):
-    #     print(f"Test case: {i}")
-    #     print(predictions[0]) 
-    #     print("=======")
-
-    # print("\n============")
-    # for idx, node in enumerate(all_top_results):
-    #     print(f"Test case: {idx} | Golden answer: {extract_gold_answer_from_text(all_gts[idx])}")
-    #     for parent in node.path():
-    #         print(f'Step solution: ',parent.state['step_solution']) 
-    #         print(f'Verification: ', parent.state['token'])
-    #         # print(f"Full Feedback: ", parent.state['full_feedback'])
-    #         print(f'Depth: ', parent.depth) 
-    #     print("********") 
-    #print("*******")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -93,6 +67,7 @@ if __name__ == "__main__":
     parser.add_argument('--beam_width', type=int, default=4)
     parser.add_argument('--n', type=int, default=4)
     parser.add_argument('--search_algorithm', type=str, default='beamsearch')
+    parser.add_argument('--use_async', type=bool, default=True)    
 
     args = parser.parse_args()
 

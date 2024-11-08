@@ -3,6 +3,7 @@ from typing import List, Callable, Any, Optional
 from tree import Tree, TreeNode
 import numpy as np
 import random
+import asyncio
 
 def is_terminal(node):
     if 'The answer is' in node.state['text']:
@@ -25,7 +26,7 @@ class BeamSearchTree(Tree):
         self.top_k = top_k  # Number of top-K solutions to return
         if top_k is None: self.top_k = beam_width
 
-    def search(self, generate_children: Callable[[Any], List[TreeNode]], max_depth: int) -> List[TreeNode]:
+    async def search(self, generate_children: Callable[[Any], List[TreeNode]], max_depth: int) -> List[TreeNode]:
         """
         Perform Beam Search to find the top-K solutions with the highest cumulative values.
 
@@ -47,7 +48,7 @@ class BeamSearchTree(Tree):
 
             # Expand each node in the current beam
             for node in current_beam:
-                children = generate_children(node)
+                children = await generate_children(node)
                 for child in children:
                     if is_terminal(child):
                         terminal_nodes.append(child)

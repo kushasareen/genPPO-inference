@@ -4,7 +4,8 @@ from transformers import (AutoModelForCausalLM,
 import torch
 from vllm import SamplingParams
 import numpy as np
-
+from generator import run_inference, run_async_inference
+import asyncio
 
 cache_dir = "/network/scratch/k/kusha.sareen/cache"
 
@@ -42,11 +43,11 @@ class MathSphereRewardModel(torch.nn.Module):
         return step_log_prob
 
 class GenVinePPOVerifier(torch.nn.Module):
-    def __init__(self, args, vllm_model):
+    def __init__(self, args, vllm_model, tokenizer):
         super().__init__()
 
         self.llm = vllm_model
-        self.tokenizer = vllm_model.get_tokenizer()
+        self.tokenizer = tokenizer
         self.yes_token_id = self.tokenizer.convert_tokens_to_ids('Yes')
         self.no_token_id = self.tokenizer.convert_tokens_to_ids('No')
         self.sampling_params = SamplingParams(temperature=0.0, max_tokens=128, logprobs=True)
@@ -54,14 +55,19 @@ class GenVinePPOVerifier(torch.nn.Module):
         self.verification_question = "\nIs the solution likely to result in the correct answer (Yes/No)?"
         #self.verification_question = "\nIs this step correct (Yes/No)?"
 
-    def forward(self, prompt, solutions): 
+    async def forward(self, prompt, solutions): 
         verification_prompts = []
         for solution in solutions:
             verification_prompt = prompt + solution + self.verification_question
             verification_prompts.append(verification_prompt)
         
-        responses = self.llm.generate(verification_prompts, self.sampling_params, use_tqdm=False)
-        
+        tasks = []
+
+        for prompt in verification_prompts:
+            tasks.append(asyncio.create_task(run_async_inference(self.llm, self.sampling_params, prompt)))
+
+        responses = [await task for task in tasks]
+
         logprobs = []
         tokens = []
         full_feedbacks = []
@@ -77,4 +83,5 @@ class GenVinePPOVerifier(torch.nn.Module):
             tokens.append(token)
             logprobs.append(score)
             full_feedbacks.append(response.outputs[0].text)
+            
         return logprobs, tokens, full_feedbacks
