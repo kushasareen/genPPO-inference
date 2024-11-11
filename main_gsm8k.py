@@ -33,7 +33,7 @@ async def run_inference(llm, reward_model, sampling_params, dataset, args):
         question = sample['question']
         answer = sample['answer']
         all_gts.append(answer) 
-        prompt = "Problem:\n" + question + '\nSolution:\n'
+        prompt = '[MATH_TASK] ' + "Problem:\n" + question + '\n\nSolution:\n' # prompt should match training data format
         root = TreeNode(state = {'text' : prompt, 'logprob' : 0, 'token' : '', 'step_solution' : '', 'full_feedback' : ''}, 
                         score = 0, parent = None, depth = 0) 
         tree, node_generator = get_search_tree_and_generator(root, llm, reward_model, sampling_params, args)
