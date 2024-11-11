@@ -1,13 +1,14 @@
 from tree import TreeNode
 import asyncio
+import uuid
 
 def run_inference(model, sampling_params, prompt):
     """Run inference on the given model with a prompt."""     
     responses = model.generate(prompt, sampling_params, use_tqdm=False)
     return responses
 
-async def run_async_inference(engine, sampling_params, prompt):
-    results_generator = engine.generate(prompt, sampling_params, use_tqdm=False)
+async def run_async_inference(engine, sampling_params, prompt, id):
+    results_generator = engine.generate(prompt, sampling_params, id)
 
     responses = None
 
@@ -27,7 +28,7 @@ class NodeGenerator:
     async def __call__(self, node):
         prompt = node.state['text']
         batch_prompt = [prompt] * self.num_children
-        responses = await run_inference(self.policy, self.sampling_params, batch_prompt)
+        responses = run_inference(self.policy, self.sampling_params, batch_prompt)
         all_children = []
         solutions = [candidate.outputs[0].text for candidate in responses]
         logprobs, tokens, full_feedbacks = await self.reward_model(prompt, solutions) 
@@ -35,7 +36,7 @@ class NodeGenerator:
             text = prompt + solution + '\n'
             child = TreeNode(state = {'text' : text, 'logprob' : logprob, 'token' : token, 'step_solution' : solution, 
                                       'full_feedback': full_feedback}, 
-                             score = node.score + logprob, 
+                             score = logprob, 
                             parent = node, depth = 0)
             all_children.append(child)
         return all_children
@@ -54,13 +55,13 @@ class AsyncNodeGenerator:
         tasks = []
 
         for prompt in batch_prompt:
-            tasks.append(asyncio.create_task(run_async_inference(self.policy, self.sampling_params, prompt)))
+            tasks.append(asyncio.create_task(run_async_inference(self.policy_engine, self.sampling_params, prompt, uuid.uuid4())))
 
         responses = [await task for task in tasks]
 
         all_children = []
         solutions = [candidate.outputs[0].text for candidate in responses]
-        logprobs, tokens, full_feedbacks = self.reward_model(prompt, solutions) 
+        logprobs, tokens, full_feedbacks = await self.reward_model(prompt, solutions) 
         for (solution, logprob, token, full_feedback) in zip(solutions, logprobs, tokens, full_feedbacks):
             text = prompt + solution + '\n'
             child = TreeNode(state = {'text' : text, 'logprob' : logprob, 'token' : token, 'step_solution' : solution, 

@@ -6,6 +6,7 @@ from vllm import SamplingParams
 import numpy as np
 from generator import run_inference, run_async_inference
 import asyncio
+import uuid
 
 cache_dir = "/network/scratch/k/kusha.sareen/cache"
 
@@ -64,7 +65,7 @@ class GenVinePPOVerifier(torch.nn.Module):
         tasks = []
 
         for prompt in verification_prompts:
-            tasks.append(asyncio.create_task(run_async_inference(self.llm, self.sampling_params, prompt)))
+            tasks.append(asyncio.create_task(run_async_inference(self.llm, self.sampling_params, prompt, uuid.uuid4())))
 
         responses = [await task for task in tasks]
 

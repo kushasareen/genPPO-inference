@@ -15,7 +15,11 @@ def main(args):
     dataset = load_dataset(args)
     llm, sampling_params, stop_tokens, tokenizer = load_model(args.policy_model, args)
     reward_model = GenVinePPOVerifier(args, llm, tokenizer)
+    start = time.time()
     asyncio.run(run_inference(llm, reward_model, sampling_params, dataset, args))
+    end = time.time()
+    print("Time: ", end - start)
+
 
 async def run_inference(llm, reward_model, sampling_params, dataset, args):
     all_gts = []
@@ -23,8 +27,6 @@ async def run_inference(llm, reward_model, sampling_params, dataset, args):
     all_top_results = []
     tasks = []
 
-
-    start = time.time()
     for i in range(len(dataset)):
         print(f"Test case: ", i)
         sample = dataset[i]
@@ -39,7 +41,6 @@ async def run_inference(llm, reward_model, sampling_params, dataset, args):
         tasks.append(asyncio.create_task(tree.search(generate_children=node_generator, max_depth=args.max_depth)))
         gc.collect()
 
-
     all_top_nodes = [await task for task in tasks]
 
     for top_nodes in all_top_nodes:
@@ -47,14 +48,11 @@ async def run_inference(llm, reward_model, sampling_params, dataset, args):
         all_preds.append(predictions)
         all_top_results.append(top_nodes[0])
 
-    end = time.time()
-
     print("\n**** Evaluating ****")
     results = evaluate_predictions(all_preds, dataset)
 
     print("\n**** Results ****")
     print(results)
-    print("Time: ", end - start)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

@@ -25,7 +25,7 @@ class BestOfNTree(Tree):
         self.top_k = top_k  # Number of top-K solutions to return
         if top_k is None: self.top_k = 1
 
-    def search(self, generate_children: Callable[[Any], List[TreeNode]], max_depth: int) -> List[TreeNode]:
+    async def search(self, generate_children: Callable[[Any], List[TreeNode]], max_depth: int) -> List[TreeNode]: # TODO: Change to async
         """
         Best of N search to find the top-K solutions with the highest cumulative values.
 
