@@ -66,7 +66,7 @@ class AsyncNodeGenerator:
             text = prompt + solution + '\n'
             child = TreeNode(state = {'text' : text, 'logprob' : logprob, 'token' : token, 'step_solution' : solution, 
                                       'full_feedback': full_feedback}, 
-                             score = logprob, 
+                             score = node.score + logprob, 
                             parent = node, depth = 0)
             all_children.append(child)
         return all_children

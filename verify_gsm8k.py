@@ -53,6 +53,8 @@ def evaluate_predictions(predictions: List[List[str]] = None, references : Any =
     unique_answer_count = []
     none_answer_extracted = []
 
+    top1_acc = []
+
     for idx, (solution_candidates, ref) in enumerate(zip(predictions, references)):
         gold_answer = extract_gold_answer_from_text(ref["answer"])
     
@@ -70,6 +72,11 @@ def evaluate_predictions(predictions: List[List[str]] = None, references : Any =
             grade_answer(given_answer=ans, ground_truth=gold_answer, item=ref)
             for ans in answer_candidates
         ]
+
+        top1 = grading_results[0]
+        
+        top1_acc.append(top1)
+
         once_hit_acc.append(float(any(grading_results)))
         correct_frac.append(sum(grading_results) / len(grading_results))
 
@@ -86,12 +93,19 @@ def evaluate_predictions(predictions: List[List[str]] = None, references : Any =
 
         unique_answer_count.append(len(set(answer_candidates)))
 
-        print(f"Test case: {idx} | Golden answer: {gold_answer} | Predicted answer: {majority_answer}")
+        try:
+            topk_index = grading_results.index(True)
+        except:
+            topk_index = 0 ### no correct answer
+        
+        print(f"Test case: {idx} | Golden answer: {gold_answer} | Predicted answer: {answer_candidates[topk_index]}")
 
     once_hit = sum(once_hit_acc) / len(once_hit_acc)
     correct_frac = sum(correct_frac) / len(correct_frac)
-
+    top1_acc = sum(top1_acc) / len(top1_acc)
+    
     return {
+        "top 1" : top1_acc,
         "once_hit": once_hit,
         "exact_match": once_hit,  # for backwards compatibility
         "correct_frac": correct_frac,
@@ -100,5 +114,4 @@ def evaluate_predictions(predictions: List[List[str]] = None, references : Any =
         "unique_answer_count": sum(unique_answer_count) / len(unique_answer_count),
         "none_answer_extracted_frac_per_problem": (
             sum(none_answer_extracted) / len(none_answer_extracted)
-        ),
-    }
+        )}

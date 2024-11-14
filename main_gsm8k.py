@@ -1,17 +1,14 @@
 import argparse
-import os
 import gc
-from generator import NodeGenerator
 from reward_model import GenVinePPOVerifier
-from search_algorithms.beam_search import BeamSearchTree
 from tree import TreeNode
 from verify_gsm8k import evaluate_predictions
 import time
-from verify_gsm8k import extract_gold_answer_from_text
 from utils import get_search_tree_and_generator, load_dataset, load_model
 import asyncio
 
 def main(args):  
+    print(args)
     dataset = load_dataset(args)
     llm, sampling_params, stop_tokens, tokenizer = load_model(args.policy_model, args)
     reward_model = GenVinePPOVerifier(args, llm, tokenizer)
@@ -28,7 +25,6 @@ async def run_inference(llm, reward_model, sampling_params, dataset, args):
     tasks = []
 
     for i in range(len(dataset)):
-        print(f"Test case: ", i)
         sample = dataset[i]
         question = sample['question']
         answer = sample['answer']
@@ -54,6 +50,9 @@ async def run_inference(llm, reward_model, sampling_params, dataset, args):
     print("\n**** Results ****")
     print(results)
 
+    print("Config")
+    print(args)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_path", type = str, default = '/network/scratch/k/kusha.sareen/genPPO/data/gsm8k/test')
@@ -64,8 +63,12 @@ if __name__ == "__main__":
     parser.add_argument('--max_depth', type=int, default=10)
     parser.add_argument('--beam_width', type=int, default=4)
     parser.add_argument('--n', type=int, default=4)
+    parser.add_argument("--top_k", type = int, default = 32)
     parser.add_argument('--search_algorithm', type=str, default='beamsearch')
     parser.add_argument('--use_async', type=bool, default=True)    
+    parser.add_argument("--download_dir", type = str, default = '')
+    parser.add_argument("--generation_temp", type = float, default = 0.35)
+    parser.add_argument("--verification_temp", type = float, default = 0.35)
 
     args = parser.parse_args()
 

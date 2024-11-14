@@ -2,3 +2,6 @@ sbatch_job.sh
 token.txt
 *.out
 __pycache__
+run_test.sh
+logs/*
+logs

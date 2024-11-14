@@ -8,8 +8,6 @@ from generator import run_inference, run_async_inference
 import asyncio
 import uuid
 
-cache_dir = "/network/scratch/k/kusha.sareen/cache"
-
 class MathSphereRewardModel(torch.nn.Module):
     def __init__(self, args, tokenizer = None):
         super().__init__()
@@ -19,11 +17,11 @@ class MathSphereRewardModel(torch.nn.Module):
         self.bad_token = '-'
         self.step_tag = 'ки'
 
-        self.prm_tokenizer = AutoTokenizer.from_pretrained(f"{args.reward_model}", cache_dir=cache_dir)
+        self.prm_tokenizer = AutoTokenizer.from_pretrained(f"{args.reward_model}", cache_dir=args.download_dir)
         self.prm_candidate_tokens = self.prm_tokenizer.encode(f"{self.good_token} {self.bad_token}")[1:] # [648, 387]
         self.step_tag_id = self.prm_tokenizer.encode(f"{self.step_tag}")[-1] # 12902
         self.prm_model = AutoModelForCausalLM.from_pretrained(f"{args.reward_model}",
-                                                        torch_dtype=torch.float16, cache_dir=cache_dir).eval()
+                                                        torch_dtype=torch.float16, cache_dir=args.download_dir).eval()
         self.prm_model.to(args.device)
         self.device = args.device
 
@@ -51,7 +49,7 @@ class GenVinePPOVerifier(torch.nn.Module):
         self.tokenizer = tokenizer
         self.yes_token_id = self.tokenizer.convert_tokens_to_ids('Yes')
         self.no_token_id = self.tokenizer.convert_tokens_to_ids('No')
-        self.sampling_params = SamplingParams(temperature=0.0, max_tokens=128, logprobs=True)
+        self.sampling_params = SamplingParams(temperature=args.verification_temp, max_tokens=128, logprobs=True)
 
         self.verification_question = "\nIs the solution likely to result in the correct answer (Yes/No)?"
         #self.verification_question = "\nIs this step correct (Yes/No)?"
@@ -73,11 +71,21 @@ class GenVinePPOVerifier(torch.nn.Module):
         tokens = []
         full_feedbacks = []
         for response, solution in zip(responses, solutions):
+
+            ##TODO: should check if it's totally correct!just ad-hoc for debugging
+            if len(response.outputs) == 0 or len(response.outputs[0].logprobs) == 0:
+                score = -100.0
+                token = 'N/A'
+                logprobs.append(score)
+                tokens.append(token)
+                full_feedbacks.append("n/a")
+                continue
+
             first_output = response.outputs[0].logprobs[0]
             if self.yes_token_id in first_output:
                 score = first_output[self.yes_token_id].logprob
                 token = first_output[self.yes_token_id].decoded_token
-            if self.no_token_id in first_output:
+            elif self.no_token_id in first_output:
                 no_logprob = first_output[self.no_token_id].logprob
                 score = np.log( 1- np.exp(no_logprob)) 
                 token = first_output[self.no_token_id].decoded_token

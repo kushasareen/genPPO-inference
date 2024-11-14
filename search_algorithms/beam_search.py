@@ -57,7 +57,7 @@ class BeamSearchTree(Tree):
                     node.add_child(child)  # Add the child to the parent node
 
             if len(next_beam) > self.beam_width:
-                next_beam = heapq.nlargest(self.beam_width, next_beam, key=lambda n: n.score)
+                next_beam = heapq.nlargest(self.beam_width, next_beam, key=lambda n: n.state['logprob'])
 
             # if len(terminal_nodes) > 16:
                 # break
@@ -73,4 +73,4 @@ class BeamSearchTree(Tree):
         if len(terminal_nodes) == 0:
             return heapq.nlargest(self.top_k, terminal_nodes + current_beam, key=lambda n: n.score)
  
-        return heapq.nlargest(self.beam_width, terminal_nodes, key=lambda n: n.score)
+        return heapq.nlargest(self.top_k, terminal_nodes, key=lambda n: n.score)

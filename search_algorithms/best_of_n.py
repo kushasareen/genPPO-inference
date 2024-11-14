@@ -47,8 +47,8 @@ class BestOfNTree(Tree):
 
             # Expand each node in the current beam
             for node in current_beam:
-                children = generate_children(node)
-                assert len(children) == 1  # generate children should only ever return 1 child
+                children = await generate_children(node)
+                #assert len(children) == 1  # generate children should only ever return 1 child
                 child = children[0]
 
                 if is_terminal(child):
