@@ -1,0 +1,15 @@
+input_path: "/network/scratch/k/kusha.sareen/genPPO/data/gsm8k/test"
+policy_model: "ReasoningMila/genppo_init_ckpt"
+reward_model: "ReasoningMila/genppo_init_ckpt"
+device: "cuda"
+beam_size: 4
+max_depth: 10
+beam_width: 4
+top_k: 32
+search_algorithm: "beamsearch"
+use_async: true
+download_dir: "/network/scratch/k/kusha.sareen/cache"
+generation_temp: 0.35
+verification_temp: 0.35
+aggregator: "last" # min or product or id
+max_tokens: 512

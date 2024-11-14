@@ -49,10 +49,9 @@ class GenVinePPOVerifier(torch.nn.Module):
         self.tokenizer = tokenizer
         self.yes_token_id = self.tokenizer.convert_tokens_to_ids('Yes')
         self.no_token_id = self.tokenizer.convert_tokens_to_ids('No')
-        self.sampling_params = SamplingParams(temperature=args.verification_temp, max_tokens=128, logprobs=True)
+        self.sampling_params = SamplingParams(temperature=args.verification_temp, max_tokens=args.max_tokens, logprobs=True) # max_tokens was previously 128, not set to be same as generator
 
         self.verification_question = "\nIs the solution likely to result in the correct answer (Yes/No)?"
-        #self.verification_question = "\nIs this step correct (Yes/No)?"
 
     async def forward(self, prompt, solutions): 
         verification_prompts = []

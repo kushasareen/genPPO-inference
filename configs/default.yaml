@@ -1,0 +1,16 @@
+core:
+  version: 0.0.1
+  tags:
+    - ${now:%Y-%m-%d}
+
+hydra:
+  run:
+    dir: "/home/mila/k/kusha.sareen/scratch/equiadapt/hydra_jobs/singlerun/${now:%Y-%m-%d}/"
+
+  sweep:
+    dir: "/home/mila/k/kusha.sareen/scratch/equiadapt/hydra_jobs/multirun/${now:%Y-%m-%d}/"
+    subdir: ${hydra.job.num}_${hydra.job.id}
+
+defaults:
+  - _self_
+  - search_algorithm: bestofn

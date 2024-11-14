@@ -17,14 +17,26 @@ async def run_async_inference(engine, sampling_params, prompt, id):
     
     return responses
 
-
-class NodeGenerator:
-    def __init__(self, policy, reward_model, num_children, sampling_params):
+class Generator:
+    def __init__(self, policy, reward_model, num_children, sampling_params, aggregator):
         self.policy = policy
         self.reward_model = reward_model
         self.num_children = num_children
         self.sampling_params = sampling_params
-    
+        self.aggregator = aggregator
+
+    def get_score(self, parent_score, logprob):
+        if self.aggregator == 'sum':
+            return parent_score + logprob
+        elif self.aggregator == 'min':
+            return min(parent_score, logprob)
+        elif self.aggregator == 'last':
+            return logprob
+        else:
+            raise ValueError(f"Aggregator not implemented: {self.aggregator}")
+
+
+class NodeGenerator(Generator):  
     async def __call__(self, node):
         prompt = node.state['text']
         batch_prompt = [prompt] * self.num_children
@@ -36,18 +48,12 @@ class NodeGenerator:
             text = prompt + solution + '\n'
             child = TreeNode(state = {'text' : text, 'logprob' : logprob, 'token' : token, 'step_solution' : solution, 
                                       'full_feedback': full_feedback}, 
-                             score = logprob, 
+                             score = self.get_score(node.score, logprob),
                             parent = node, depth = 0)
             all_children.append(child)
         return all_children
 
-class AsyncNodeGenerator:
-    def __init__(self, policy_engine, reward_model, num_children, sampling_params):
-        self.policy_engine = policy_engine
-        self.reward_model = reward_model
-        self.num_children = num_children
-        self.sampling_params = sampling_params
-
+class AsyncNodeGenerator(Generator):
     async def __call__(self, node):
         prompt = node.state['text']
         batch_prompt = [prompt] * self.num_children
@@ -66,7 +72,7 @@ class AsyncNodeGenerator:
             text = prompt + solution + '\n'
             child = TreeNode(state = {'text' : text, 'logprob' : logprob, 'token' : token, 'step_solution' : solution, 
                                       'full_feedback': full_feedback}, 
-                             score = node.score + logprob, 
+                             score = self.get_score(node.score, logprob),
                             parent = node, depth = 0)
             all_children.append(child)
         return all_children

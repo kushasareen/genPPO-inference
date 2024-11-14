@@ -23,10 +23,10 @@ def get_search_tree_and_generator(root , llm, reward_model, sampling_params, arg
 
     if args.search_algorithm == "beamsearch":
         tree = BeamSearchTree(root=root, beam_width=args.beam_width)
-        generator = generator_type(llm, reward_model, args.beam_width, sampling_params)
+        generator = generator_type(llm, reward_model, args.beam_width, sampling_params, aggregator=args.aggregator)
     elif args.search_algorithm == "bestofn":
         tree =  BestOfNTree(root=root, n=args.n, top_k = args.top_k)
-        generator = generator_type(llm, reward_model, num_children=1, sampling_params=sampling_params)
+        generator = generator_type(llm, reward_model, num_children=1, sampling_params=sampling_params, aggregator=args.aggregator)
     else:
         raise ValueError(f"Search algorithm not implemented: {args.search_algorithm}")
     
@@ -39,7 +39,7 @@ def get_llm(model_name, args):
             model=model_name,
             dtype='float16',
             enforce_eager=True,
-            download_dir= args.dowload_dir,
+            download_dir= args.download_dir,
             gpu_memory_utilization=0.99,
             swap_space=3,
             max_model_len=2048,
@@ -54,7 +54,7 @@ def get_llm(model_name, args):
                 dtype='float16',
                 max_model_len=2048,
                 tensor_parallel_size=1, 
-                download_dir = "/network/scratch/k/kusha.sareen/cache", 
+                download_dir = args.download_dir, 
                 gpu_memory_utilization=0.5, 
                 enforce_eager=True) # False?
         
@@ -70,5 +70,5 @@ def load_model(model_name, args):
     llm, tokenizer = get_llm(model_name, args)
     stop_words = [tokenizer.eos_token if tokenizer is not None and tokenizer.eos_token is not None else '</s>']
     stop_words.append("\n")
-    sampling_params = SamplingParams(temperature=args.generation_temp, max_tokens=512, stop=stop_words)
+    sampling_params = SamplingParams(temperature=args.generation_temp, max_tokens=args.max_tokens, stop=stop_words)
     return llm, sampling_params, stop_words, tokenizer
