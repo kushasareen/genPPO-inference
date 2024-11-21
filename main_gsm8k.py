@@ -7,6 +7,7 @@ import time
 from utils import get_search_tree_and_generator, load_dataset, load_model
 import asyncio
 import hydra
+import numpy as np
 
 @hydra.main(version_base = None, config_path="configs", config_name="default")
 def main(cfg):  
@@ -25,10 +26,11 @@ async def run_inference(llm, reward_model, sampling_params, dataset, args):
     all_gts = []
     all_preds = []
     all_top_results = []
+    all_probs = []
     tasks = []
 
     for i in range(len(dataset)):
-
+    # for i in range(3):
         sample = dataset[i]
         question = sample['question']
         answer = sample['answer']
@@ -45,11 +47,13 @@ async def run_inference(llm, reward_model, sampling_params, dataset, args):
 
     for top_nodes in all_top_nodes:
         predictions = [node.state['text'] for node in top_nodes]
+        probs = [np.exp(node.score) for node in top_nodes]
+        all_probs.append(probs)
         all_preds.append(predictions)
         all_top_results.append(top_nodes[0])
 
     print("\n**** Evaluating ****")
-    results = evaluate_predictions(all_preds, dataset)
+    results = evaluate_predictions(all_preds, dataset, all_probs)
 
     print("\n**** Results ****")
     print(results)

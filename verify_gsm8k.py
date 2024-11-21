@@ -46,7 +46,7 @@ def grade_answer(
             == ground_truth.strip().lower()
         )
 
-def evaluate_predictions(predictions: List[List[str]] = None, references : Any = None):
+def evaluate_predictions(predictions: List[List[str]] = None, references : Any = None, probabilities: Optional[List[float]] = None) -> Dict[str, float]:
     once_hit_acc = []
     correct_frac = []
     majority_vote_acc = []
@@ -56,7 +56,7 @@ def evaluate_predictions(predictions: List[List[str]] = None, references : Any =
 
     top1_acc = []
 
-    for idx, (solution_candidates, ref) in enumerate(zip(predictions, references)):
+    for idx, (solution_candidates, ref, prob) in enumerate(zip(predictions, references, probabilities)):
         gold_answer = extract_gold_answer_from_text(ref["answer"])
     
         assert len(solution_candidates) > 0
@@ -92,12 +92,17 @@ def evaluate_predictions(predictions: List[List[str]] = None, references : Any =
         majority_answer_is_correct = grading_results[majority_answer_index]
         majority_vote_acc.append(majority_answer_is_correct)
         
-        weighted_majority_answer, _ = Counter(answer_candidates).most_common(n=1)[0]
-        assert len(answer_candidates) == len(grading_results)
+        answer_dict = {}
+        for ans, p in zip(answer_candidates, prob):
+            if ans in answer_dict:
+                answer_dict[ans] += p
+            else:
+                answer_dict[ans] = p
+                
+        weighted_majority_answer = max(answer_dict, key=answer_dict.get)
         weighted_majority_answer_index = answer_candidates.index(weighted_majority_answer)
         weighted_majority_answer_is_correct = grading_results[weighted_majority_answer_index]
         weighted_majority_vote_acc.append(weighted_majority_answer_is_correct)
-
 
         unique_answer_count.append(len(set(answer_candidates)))
 
