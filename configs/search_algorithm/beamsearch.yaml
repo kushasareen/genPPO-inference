@@ -10,6 +10,6 @@ search_algorithm: "beamsearch"
 use_async: true
 download_dir: "/network/scratch/k/kusha.sareen/cache"
 generation_temp: 0.35
-verification_temp: 0.35
+verification_temp: 1.0
 aggregator: "last" # min or product or id
 max_tokens: 512

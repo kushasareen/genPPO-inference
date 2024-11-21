@@ -2,16 +2,18 @@
 n=8
 mode='bestofn'
 max_depth=10
+temp=0.35
 
-while getopts w:d flag
+while getopts n:t:d flag
 do
     case "${flag}" in
         n) n=${OPTARG};;
         d) max_depth=${OPTARG};;
+        t) temp=${OPTARG};;
     esac
 done
 
-NAME="${mode}_n${n}_d${max_depth}";
+NAME="${mode}_n${n}_d${max_depth}_t${temp}";
 echo $NAME
 sbatch <<EOT
 #!/bin/bash
@@ -30,5 +32,5 @@ conda activate genPPO
 
 unset CUDA_VISIBLE_DEVICES
 
-python3 main_gsm8k.py search_algorithm=$mode search_algorithm.n=$n search_algorithm.max_depth=$max_depth
+python3 main_gsm8k.py search_algorithm=$mode search_algorithm.n=$n search_algorithm.max_depth=$max_depth search_algorithm.generation_temp=$temp
 EOT

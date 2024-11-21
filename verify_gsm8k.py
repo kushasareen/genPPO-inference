@@ -50,6 +50,7 @@ def evaluate_predictions(predictions: List[List[str]] = None, references : Any =
     once_hit_acc = []
     correct_frac = []
     majority_vote_acc = []
+    weighted_majority_vote_acc = []
     unique_answer_count = []
     none_answer_extracted = []
 
@@ -90,6 +91,13 @@ def evaluate_predictions(predictions: List[List[str]] = None, references : Any =
         majority_answer_index = answer_candidates.index(majority_answer)
         majority_answer_is_correct = grading_results[majority_answer_index]
         majority_vote_acc.append(majority_answer_is_correct)
+        
+        weighted_majority_answer, _ = Counter(answer_candidates).most_common(n=1)[0]
+        assert len(answer_candidates) == len(grading_results)
+        weighted_majority_answer_index = answer_candidates.index(weighted_majority_answer)
+        weighted_majority_answer_is_correct = grading_results[weighted_majority_answer_index]
+        weighted_majority_vote_acc.append(weighted_majority_answer_is_correct)
+
 
         unique_answer_count.append(len(set(answer_candidates)))
 
@@ -111,6 +119,7 @@ def evaluate_predictions(predictions: List[List[str]] = None, references : Any =
         "correct_frac": correct_frac,
         "exact_match_frac": correct_frac,  # for backwards compatibility
         "majority_vote_acc": sum(majority_vote_acc) / len(majority_vote_acc),
+        "weighted_majority_vote_acc": sum(weighted_majority_vote_acc) / len(weighted_majority_vote_acc),
         "unique_answer_count": sum(unique_answer_count) / len(unique_answer_count),
         "none_answer_extracted_frac_per_problem": (
             sum(none_answer_extracted) / len(none_answer_extracted)

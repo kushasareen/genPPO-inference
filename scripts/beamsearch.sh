@@ -2,19 +2,21 @@
 beam_size=4
 beam_width=4
 max_depth=10
+temp=0.35
 mode='beamsearch'
 
-while getopts w:s:d flag
+while getopts w:s:t:d flag
 do
     case "${flag}" in
         w) beam_width=${OPTARG};;
         s) beam_size=${OPTARG};;
         d) max_depth=${OPTARG};;
-        m) mode=${OPTARG};;
+        t) temp=${OPTARG};;
+
     esac
 done
 
-NAME="${mode}_s${beam_size}_w${beam_width}_d${max_depth}";
+NAME="${mode}_s${beam_size}_w${beam_width}_d${max_depth}_t${temp}";
 echo $NAME
 sbatch <<EOT
 #!/bin/bash

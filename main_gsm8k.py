@@ -28,6 +28,7 @@ async def run_inference(llm, reward_model, sampling_params, dataset, args):
     tasks = []
 
     for i in range(len(dataset)):
+
         sample = dataset[i]
         question = sample['question']
         answer = sample['answer']

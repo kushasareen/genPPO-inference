@@ -49,7 +49,7 @@ class GenVinePPOVerifier(torch.nn.Module):
         self.tokenizer = tokenizer
         self.yes_token_id = self.tokenizer.convert_tokens_to_ids('Yes')
         self.no_token_id = self.tokenizer.convert_tokens_to_ids('No')
-        self.sampling_params = SamplingParams(temperature=args.verification_temp, max_tokens=args.max_tokens, logprobs=True) # max_tokens was previously 128, not set to be same as generator
+        self.sampling_params = SamplingParams(temperature=args.verification_temp, max_tokens=1, logprobs=20) # max_tokens was previously 128
 
         self.verification_question = "\nIs the solution likely to result in the correct answer (Yes/No)?"
 
@@ -74,20 +74,23 @@ class GenVinePPOVerifier(torch.nn.Module):
             ##TODO: should check if it's totally correct!just ad-hoc for debugging
             if len(response.outputs) == 0 or len(response.outputs[0].logprobs) == 0:
                 score = -100.0
-                token = 'N/A'
                 logprobs.append(score)
                 tokens.append(token)
                 full_feedbacks.append("n/a")
                 continue
 
-            first_output = response.outputs[0].logprobs[0]
-            if self.yes_token_id in first_output:
+            first_output = response.outputs[0].logprobs[0] # contains top 20 logprobs
+            if self.yes_token_id in first_output: # if yes token is in the top 20 logprobs (it should always be), score is the logprob of yes token
                 score = first_output[self.yes_token_id].logprob
-                token = first_output[self.yes_token_id].decoded_token
-            elif self.no_token_id in first_output:
+
+            elif self.no_token_id in first_output: # if yes token is not in the top 20 logprobs, score is the log(1 - prob(no token)) (if that's there)
                 no_logprob = first_output[self.no_token_id].logprob
                 score = np.log( 1- np.exp(no_logprob)) 
-                token = first_output[self.no_token_id].decoded_token
+
+            else: # otherwise, we set the score to -100
+                score = -100.0
+
+            token = response.outputs[0].text
             tokens.append(token)
             logprobs.append(score)
             full_feedbacks.append(response.outputs[0].text)

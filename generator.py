@@ -61,7 +61,7 @@ class AsyncNodeGenerator(Generator):
         tasks = []
 
         for prompt in batch_prompt:
-            tasks.append(asyncio.create_task(run_async_inference(self.policy_engine, self.sampling_params, prompt, uuid.uuid4())))
+            tasks.append(asyncio.create_task(run_async_inference(self.policy, self.sampling_params, prompt, uuid.uuid4())))
 
         responses = [await task for task in tasks]
 

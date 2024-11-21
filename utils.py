@@ -70,5 +70,5 @@ def load_model(model_name, args):
     llm, tokenizer = get_llm(model_name, args)
     stop_words = [tokenizer.eos_token if tokenizer is not None and tokenizer.eos_token is not None else '</s>']
     stop_words.append("\n")
-    sampling_params = SamplingParams(temperature=args.generation_temp, max_tokens=args.max_tokens, stop=stop_words)
+    sampling_params = SamplingParams(temperature=int(args.generation_temp), max_tokens=args.max_tokens, stop=stop_words)
     return llm, sampling_params, stop_words, tokenizer
