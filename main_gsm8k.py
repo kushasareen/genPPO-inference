@@ -15,7 +15,12 @@ def main(cfg):
     print(args)
     dataset = load_dataset(args)
     llm, sampling_params, stop_tokens, tokenizer = load_model(args.policy_model, args)
-    reward_model = GenVinePPOVerifier(args, llm, tokenizer)
+    if args.reward_model==args.policy_model:
+        reward_llm = llm
+    else:
+        reward_llm, _, _, _ = load_model(args.reward_model, args)
+
+    reward_model = GenVinePPOVerifier(args, reward_llm, tokenizer)
     start = time.time()
     asyncio.run(run_inference(llm, reward_model, sampling_params, dataset, args))
     end = time.time()
@@ -30,7 +35,6 @@ async def run_inference(llm, reward_model, sampling_params, dataset, args):
     tasks = []
 
     for i in range(len(dataset)):
-    # for i in range(3):
         sample = dataset[i]
         question = sample['question']
         answer = sample['answer']

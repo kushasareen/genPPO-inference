@@ -13,7 +13,7 @@ do
     esac
 done
 
-NAME="${mode}_n${n}_d${max_depth}_t${temp}";
+NAME="2${mode}_n${n}_d${max_depth}_t${temp}";
 echo $NAME
 sbatch <<EOT
 #!/bin/bash

@@ -1,6 +1,6 @@
 input_path: "/network/scratch/k/kusha.sareen/genPPO/data/gsm8k/test"
-policy_model: "ReasoningMila/genppo_init_ckpt"
-reward_model: "ReasoningMila/genppo_init_ckpt"
+policy_model: "ReasoningMila/genppo_init_ckpt" # ReasoningMila/vineppo_baseline_ckpt
+reward_model: "ReasoningMila/genppo_init_ckpt" # ReasoningMila/vineppo_baseline_ckpt
 device: "cuda"
 max_depth: 10
 n: 4
@@ -9,6 +9,6 @@ search_algorithm: "bestofn"
 use_async: true
 download_dir: "/network/scratch/k/kusha.sareen/cache"
 generation_temp: 0.35
-verification_temp: 1.0
+verification_temp: 0.35
 aggregator: "sum" # min or product or id
 max_tokens: 512
