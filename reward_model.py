@@ -74,6 +74,7 @@ class GenVinePPOVerifier(torch.nn.Module):
             ##TODO: should check if it's totally correct!just ad-hoc for debugging
             if len(response.outputs) == 0 or len(response.outputs[0].logprobs) == 0:
                 score = -100.0
+                token = "n/a"
                 logprobs.append(score)
                 tokens.append(token)
                 full_feedbacks.append("n/a")
