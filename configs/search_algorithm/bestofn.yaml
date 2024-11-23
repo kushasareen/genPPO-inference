@@ -3,7 +3,7 @@ policy_model: "ReasoningMila/genppo_init_ckpt" # ReasoningMila/vineppo_baseline_
 reward_model: "ReasoningMila/genppo_init_ckpt" # ReasoningMila/vineppo_baseline_ckpt
 device: "cuda"
 max_depth: 10
-n: 4
+n: 8
 top_k: 32
 search_algorithm: "bestofn"
 use_async: true
@@ -12,3 +12,4 @@ generation_temp: 0.35
 verification_temp: 0.35
 aggregator: "sum" # min or product or id
 max_tokens: 512
+verification_question: "\nIs the solution likely to result in the correct answer (Yes/No)?"

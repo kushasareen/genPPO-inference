@@ -49,9 +49,9 @@ class GenVinePPOVerifier(torch.nn.Module):
         self.tokenizer = tokenizer
         self.yes_token_id = self.tokenizer.convert_tokens_to_ids('Yes')
         self.no_token_id = self.tokenizer.convert_tokens_to_ids('No')
-        self.sampling_params = SamplingParams(temperature=args.verification_temp, max_tokens=1, logprobs=20) # max_tokens was previously 128
+        self.sampling_params = SamplingParams(temperature=args.verification_temp, max_tokens=1, logprobs=20)
 
-        self.verification_question = "\nIs the solution likely to result in the correct answer (Yes/No)?"
+        self.verification_question = args.verification_question
 
     async def forward(self, prompt, solutions): 
         verification_prompts = []
@@ -74,19 +74,15 @@ class GenVinePPOVerifier(torch.nn.Module):
             ##TODO: should check if it's totally correct!just ad-hoc for debugging
             if len(response.outputs) == 0 or len(response.outputs[0].logprobs) == 0:
                 score = -100.0
-                token = "n/a"
+                token = 'N/A'
                 logprobs.append(score)
                 tokens.append(token)
                 full_feedbacks.append("n/a")
                 continue
 
-            first_output = response.outputs[0].logprobs[0] # contains top 20 logprobs
+            first_output = response.outputs[0].logprobs[0]
             if self.yes_token_id in first_output: # if yes token is in the top 20 logprobs (it should always be), score is the logprob of yes token
                 score = first_output[self.yes_token_id].logprob
-
-            elif self.no_token_id in first_output: # if yes token is not in the top 20 logprobs, score is the log(1 - prob(no token)) (if that's there)
-                no_logprob = first_output[self.no_token_id].logprob
-                score = np.log( 1- np.exp(no_logprob)) 
 
             else: # otherwise, we set the score to -100
                 score = -100.0

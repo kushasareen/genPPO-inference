@@ -13,3 +13,4 @@ generation_temp: 0.35
 verification_temp: 1.0
 aggregator: "last" # min or product or id
 max_tokens: 512
+verification_question: "\nIs the solution likely to result in the correct answer (Yes/No)?"
