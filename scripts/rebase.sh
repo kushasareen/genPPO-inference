@@ -35,7 +35,5 @@ conda activate genPPO
 
 unset CUDA_VISIBLE_DEVICES
 
-python3 main_gsm8k.py search_algorithm=$mode search_algorithm.max_depth=$max_depth \ 
-        search_algorithm.expansion_temp=$expansion_temp search_algorithm.temperature=$temp \
-        search_algorithm.top_k=$top_k
+python3 main_gsm8k.py search_algorithm=$mode search_algorithm.max_depth=$max_depth search_algorithm.expansion_temp=$expansion_temp search_algorithm.generation_temp=$temp search_algorithm.top_k=$top_k
 EOT

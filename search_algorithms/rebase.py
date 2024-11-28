@@ -29,7 +29,7 @@ class RebaseTree(Tree):
         self.budget = top_k # Set the budget initially to the top_k value
 
     def get_beam_widths(self, current_beam: List[TreeNode]) -> int:
-        return np.round(self.budget * scsp.softmax([n.score/self.expansion_temp for n in current_beam])).astype(int)
+        return np.round(self.budget * scsp.softmax([np.exp(n.score)/self.expansion_temp for n in current_beam])).astype(int) # exponentiate the logprob to get the prob
 
     async def search(self, generate_children: Callable[[Any], List[TreeNode]], max_depth: int) -> List[TreeNode]:
         """
