@@ -13,4 +13,4 @@ hydra:
 
 defaults:
   - _self_
-  - search_algorithm: bestofn_ckpt2
+  - search_algorithm: bestofn
