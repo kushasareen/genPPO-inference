@@ -64,6 +64,7 @@ async def run_inference(llm, reward_model, sampling_params, dataset, args):
     print(results)
     print("Total tokens generated: ", node_generator.token_count + reward_model.token_count)
     results["total_tokens"] = node_generator.token_count + reward_model.token_count
+    results["config"] = args
     save_results(results, args)
 
     print("Config")

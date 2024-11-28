@@ -4,8 +4,8 @@ policy_model: "ReasoningMila/genppo_init_ckpt" # ReasoningMila/vineppo_baseline_
 reward_model: "ReasoningMila/genppo_init_ckpt" # ReasoningMila/vineppo_baseline_ckpt
 device: "cuda"
 max_depth: 10
-n: 129
-top_k: 129
+n: 150
+top_k: 150
 search_algorithm: "bestofn"
 use_async: true
 download_dir: "/network/scratch/k/kusha.sareen/cache"

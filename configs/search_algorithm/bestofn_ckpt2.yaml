@@ -4,8 +4,8 @@ policy_model: "ReasoningMila/polIter_rho1bSft2_vineppo_GSM8K_ver_coeff_1e_1_from
 reward_model: "ReasoningMila/polIter_rho1bSft2_vineppo_GSM8K_ver_coeff_1e_1_from_vp_checkpoint"
 device: "cuda"
 max_depth: 10
-n: 129
-top_k: 129
+n: 150
+top_k: 150
 search_algorithm: "bestofn"
 use_async: true
 download_dir: "/network/scratch/k/kusha.sareen/cache"

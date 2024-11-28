@@ -118,6 +118,10 @@ def weighted_majority_vote(answers: List[str], probs: List[float], grading_resul
     return num_correct / num_subsets
 
 def majority_vote(answers: List[str], grading_results, k, num_subsets) -> str:
+    if k > len(grading_results):
+        print("Warning: k is larger than the number of answers. Setting k to the number of answers.")
+        k = len(grading_results)
+
     answers_np = np.array(answers)
     num_correct = 0
     for _ in range(num_subsets):
