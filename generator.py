@@ -42,9 +42,18 @@ class Generator:
 
 
 class NodeGenerator(Generator):  
-    async def __call__(self, node):
+    async def __call__(self, node, width = None):
+        if width is None: #TODO: clean this up later
+            if self.num_children is None:
+                raise ValueError("expansion width must be specified")
+            width = self.num_children
+            
+        if width == 0:
+            return []
+
+
         prompt = node.state['text']
-        batch_prompt = [prompt] * self.num_children
+        batch_prompt = [prompt] * width
         responses = run_inference(self.policy, self.sampling_params, batch_prompt)
         for response in responses:
             self.token_count += len(response.outputs[0].token_ids)
@@ -62,9 +71,17 @@ class NodeGenerator(Generator):
         return all_children
 
 class AsyncNodeGenerator(Generator):
-    async def __call__(self, node):
+    async def __call__(self, node, width = None):
+        if width is None: #TODO: clean this up later
+            if self.num_children is None:
+                raise ValueError("expansion width must be specified")
+            width = self.num_children
+
+        if width == 0:
+            return []
+
         prompt = node.state['text']
-        batch_prompt = [prompt] * self.num_children
+        batch_prompt = [prompt] * width
 
         tasks = []
 
@@ -82,7 +99,7 @@ class AsyncNodeGenerator(Generator):
             text = prompt + solution + '\n'
             child = TreeNode(state = {'text' : text, 'logprob' : logprob, 'token' : token, 'step_solution' : solution, 
                                       'full_feedback': full_feedback}, 
-                             score = self.get_score(node.score, logprob), all_scores = self.get_all_scores(node.all_scores, logprob) if self.log_all_scores else None,
+                             score = self.get_score(node.score, logprob), all_scores = self.get_all_scores(node.all_scores, logprob) if self.log_all_scores else {self.aggregator: self.get_score(node.score, logprob)},
                             parent = node, depth = 0)
             all_children.append(child)
         return all_children

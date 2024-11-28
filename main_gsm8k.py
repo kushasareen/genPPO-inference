@@ -8,6 +8,7 @@ from utils import get_search_tree_and_generator, load_dataset, load_model, save_
 import asyncio
 import hydra
 import numpy as np
+from omegaconf import OmegaConf
 
 @hydra.main(version_base = None, config_path="configs", config_name="default")
 def main(cfg):  
@@ -64,7 +65,7 @@ async def run_inference(llm, reward_model, sampling_params, dataset, args):
     print(results)
     print("Total tokens generated: ", node_generator.token_count + reward_model.token_count)
     results["total_tokens"] = node_generator.token_count + reward_model.token_count
-    results["config"] = args
+    results["config"] = OmegaConf.to_container(args, resolve = True)
     save_results(results, args)
 
     print("Config")

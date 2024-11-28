@@ -1,5 +1,6 @@
 from search_algorithms.beam_search import BeamSearchTree
 from search_algorithms.best_of_n import BestOfNTree
+from search_algorithms.rebase import RebaseTree
 from generator import NodeGenerator, AsyncNodeGenerator
 from vllm import LLM, SamplingParams, AsyncLLMEngine
 from vllm.engine.arg_utils import AsyncEngineArgs
@@ -30,6 +31,9 @@ def get_search_tree_and_generator(root , llm, reward_model, sampling_params, arg
     elif args.search_algorithm == "bestofn":
         tree =  BestOfNTree(root=root, n=args.n, top_k = args.top_k)
         generator = generator_type(llm, reward_model, num_children=1, sampling_params=sampling_params, args=args)
+    elif args.search_algorithm == "rebase":
+        tree = RebaseTree(root=root, expansion_temp=args.expansion_temp, top_k=args.top_k)
+        generator = generator_type(llm, reward_model, num_children=None, sampling_params=sampling_params, args=args)
     else:
         raise ValueError(f"Search algorithm not implemented: {args.search_algorithm}")
     

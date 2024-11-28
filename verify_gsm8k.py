@@ -134,8 +134,12 @@ def majority_vote(answers: List[str], grading_results, k, num_subsets) -> str:
 
     return num_correct / num_subsets
 
+def powers_of_2_less_than(n):
+    """Return a list of all powers of 2 less than n."""
+    return [2 ** i for i in range(int(math.log2(n)) + 1)]
 
-def evaluate_predictions(predictions: List[List[str]] = None, references : Any = None, all_scores = None, args = None, ns = [1, 4, 8, 16, 32, 64, 128], ks = [1, 4, 8, 16, 32, 64, 128]) -> Dict[str, float]:
+
+def evaluate_predictions(predictions: List[List[str]] = None, references : Any = None, all_scores = None, args = None) -> Dict[str, float]:
     once_hit_acc = []
     correct_frac = []
     unique_answer_count = []
@@ -147,6 +151,10 @@ def evaluate_predictions(predictions: List[List[str]] = None, references : Any =
     majority_vote_acc = {}
     best_of_n_acc = {aggregator: {} for aggregator in all_scores[0][0].keys()}
     weighted_majority_vote_acc = {aggregator: {} for aggregator in all_scores[0][0].keys()}
+
+    min_solutions = min([len(sol) for sol in predictions])
+    ks = powers_of_2_less_than(min_solutions-1)
+    ns = powers_of_2_less_than(min_solutions-1)
 
 
     for idx, (solution_candidates, ref) in enumerate(zip(predictions, references)):
@@ -276,5 +284,5 @@ if __name__ == "__main__":
     ]
     class args:
         log_all_scores = False
-    results = evaluate_predictions(predictions, references, all_scores, args, ns=[1,2,3,4], ks=[1,2,3,4])
+    results = evaluate_predictions(predictions, references, all_scores, args)
     print(results)

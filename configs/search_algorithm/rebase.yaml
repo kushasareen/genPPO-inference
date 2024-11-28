@@ -1,0 +1,18 @@
+name: "rebase"
+input_path: "/network/scratch/k/kusha.sareen/genPPO/data/gsm8k/test"
+policy_model: "ReasoningMila/polIter_rho1bSft2_vineppo_GSM8K_ver_coeff_1e_1_from_vp_checkpoint" # edit ckpt
+reward_model: "ReasoningMila/polIter_rho1bSft2_vineppo_GSM8K_ver_coeff_1e_1_from_vp_checkpoint"
+device: "cuda"
+max_depth: 20
+top_k: 32 # top k is the initial budget for rebase
+expansion_temp: 0.1 # from rebase paper
+search_algorithm: "rebase"
+use_async: true
+download_dir: "/network/scratch/k/kusha.sareen/cache"
+generation_temp: 0.7 # 0.35
+verification_temp: 1.0
+aggregator: "last" # min or sum or last
+max_tokens: 512
+verification_question: "\nIs the solution likely to result in the correct answer (Yes/No)?\n"
+log_all_scores: false
+output_path: "/home/mila/k/kusha.sareen/scratch/genPPO/outputs"

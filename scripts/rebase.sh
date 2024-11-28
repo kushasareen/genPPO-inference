@@ -1,22 +1,22 @@
 #!/bin/bash
-beam_size=4
-beam_width=4
-max_depth=10
+expansion_temp=0.1
+max_depth=20
 temp=0.7
-mode='beamsearch'
+mode='rebase'
+top_k=32
 
-while getopts w:s:t:d flag
+while getopts e:k:d:t: flag
 do
     case "${flag}" in
-        w) beam_width=${OPTARG};;
-        s) beam_size=${OPTARG};;
+        e) expansion_temp=${OPTARG};;
         d) max_depth=${OPTARG};;
+        k) top_k=${OPTARG};;
         t) temp=${OPTARG};;
 
     esac
 done
 
-NAME="${mode}_s${beam_size}_w${beam_width}_d${max_depth}_t${temp}";
+NAME="${mode}_k${top_k}_e${expansion_temp}_d${max_depth}_t${temp}";
 echo $NAME
 sbatch <<EOT
 #!/bin/bash
@@ -35,6 +35,7 @@ conda activate genPPO
 
 unset CUDA_VISIBLE_DEVICES
 
-python3 main_gsm8k.py search_algorithm=$mode search_algorithm.beam_size=$beam_size search_algorithm.beam_width=$beam_width \
-                        search_algorithm.max_depth=$max_depth
+python3 main_gsm8k.py search_algorithm=$mode search_algorithm.max_depth=$max_depth \ 
+        search_algorithm.expansion_temp=$expansion_temp search_algorithm.temperature=$temp \
+        search_algorithm.top_k=$top_k
 EOT
