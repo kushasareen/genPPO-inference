@@ -4,7 +4,7 @@ from reward_model import GenVinePPOVerifier
 from tree import TreeNode
 from verify_gsm8k import evaluate_predictions
 import time
-from utils import get_search_tree_and_generator, load_dataset, load_model
+from utils import get_search_tree_and_generator, load_dataset, load_model, save_results
 import asyncio
 import hydra
 import numpy as np
@@ -31,8 +31,8 @@ async def run_inference(llm, reward_model, sampling_params, dataset, args):
     all_gts = []
     all_preds = []
     all_top_results = []
-    all_probs = []
     tasks = []
+    all_different_scores = []
 
     for i in range(len(dataset)):
         sample = dataset[i]
@@ -41,7 +41,7 @@ async def run_inference(llm, reward_model, sampling_params, dataset, args):
         all_gts.append(answer) 
         prompt = '[MATH_TASK] ' + "Problem:\n" + question + '\n\nSolution:\n' # prompt should match training data format
         root = TreeNode(state = {'text' : prompt, 'logprob' : 0, 'token' : '', 'step_solution' : '', 'full_feedback' : ''}, 
-                        score = 0, parent = None, depth = 0) 
+                        score = 0, parent = None, depth = 0, all_scores = {"sum": 0, "min": 0, "last": 0} if args.log_all_scores else {args.aggregator: 0})
         tree, node_generator = get_search_tree_and_generator(root, llm, reward_model, sampling_params, args)
 
         tasks.append(asyncio.create_task(tree.search(generate_children=node_generator, max_depth=args.max_depth)))
@@ -51,19 +51,23 @@ async def run_inference(llm, reward_model, sampling_params, dataset, args):
 
     for top_nodes in all_top_nodes:
         predictions = [node.state['text'] for node in top_nodes]
-        probs = [np.exp(node.score) for node in top_nodes]
-        all_probs.append(probs)
         all_preds.append(predictions)
         all_top_results.append(top_nodes[0])
+        different_scores = [{k: np.exp(v) for k, v in node.all_scores.items()} for node in top_nodes]
+        all_different_scores.append(different_scores)
+
 
     print("\n**** Evaluating ****")
-    results = evaluate_predictions(all_preds, dataset, all_probs)
+    results = evaluate_predictions(all_preds, dataset, all_different_scores, args)
 
     print("\n**** Results ****")
     print(results)
+    print("Total tokens generated: ", node_generator.token_count + reward_model.token_count)
+    save_results(results, args)
 
     print("Config")
     print(args)
+
 
 if __name__ == "__main__":
 

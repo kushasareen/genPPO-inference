@@ -24,6 +24,7 @@ class MathSphereRewardModel(torch.nn.Module):
                                                         torch_dtype=torch.float16, cache_dir=args.download_dir).eval()
         self.prm_model.to(args.device)
         self.device = args.device
+        self.token_count = 0
 
     def forward(self, question, solution):
         if len(solution) == 0:
@@ -52,6 +53,7 @@ class GenVinePPOVerifier(torch.nn.Module):
         self.sampling_params = SamplingParams(temperature=args.verification_temp, max_tokens=1, logprobs=20)
 
         self.verification_question = args.verification_question
+        self.token_count = 0
 
     async def forward(self, prompt, solutions): 
         verification_prompts = []
@@ -65,6 +67,9 @@ class GenVinePPOVerifier(torch.nn.Module):
             tasks.append(asyncio.create_task(run_async_inference(self.llm, self.sampling_params, prompt, uuid.uuid4())))
 
         responses = [await task for task in tasks]
+
+        for response in responses:
+            self.token_count += len(response.outputs[0].token_ids)
 
         logprobs = []
         tokens = []

@@ -5,7 +5,10 @@ from vllm import LLM, SamplingParams, AsyncLLMEngine
 from vllm.engine.arg_utils import AsyncEngineArgs
 from datasets import Dataset
 import asyncio
-
+from omegaconf import DictConfig
+import re
+import json
+import time
 
 def load_dataset(args):
     dataset = Dataset.load_from_disk(args.input_path)
@@ -23,10 +26,10 @@ def get_search_tree_and_generator(root , llm, reward_model, sampling_params, arg
 
     if args.search_algorithm == "beamsearch":
         tree = BeamSearchTree(root=root, beam_width=args.beam_width)
-        generator = generator_type(llm, reward_model, args.beam_width, sampling_params, aggregator=args.aggregator)
+        generator = generator_type(llm, reward_model, args.beam_width, sampling_params, args=args)
     elif args.search_algorithm == "bestofn":
         tree =  BestOfNTree(root=root, n=args.n, top_k = args.top_k)
-        generator = generator_type(llm, reward_model, num_children=1, sampling_params=sampling_params, aggregator=args.aggregator)
+        generator = generator_type(llm, reward_model, num_children=1, sampling_params=sampling_params, args=args)
     else:
         raise ValueError(f"Search algorithm not implemented: {args.search_algorithm}")
     
@@ -72,3 +75,37 @@ def load_model(model_name, args):
     stop_words.append("\n")
     sampling_params = SamplingParams(temperature=args.generation_temp, max_tokens=args.max_tokens, stop=stop_words)
     return llm, sampling_params, stop_words, tokenizer
+
+
+def generate_filename(config: DictConfig, separator: str = "_", extension: str = ".json") -> str:
+    """
+    Generate a filename based on the attributes and values in a DictConfig.
+
+    Args:
+        config (DictConfig): The configuration object.
+        separator (str): Separator to use between attributes and values.
+        extension (str): File extension for the generated filename.
+
+    Returns:
+        str: Generated filename.
+    """
+    def sanitize(value):
+        # Remove characters that are not safe for filenames
+        return re.sub(r'[^\w\-]', '', str(value))
+
+    parts = []
+    for key, value in config.items():
+        sanitized_key = sanitize(key)
+        sanitized_value = sanitize(value)
+        parts.append(f"{sanitized_key}{separator}{sanitized_value}")
+
+    filename = separator.join(parts) + extension
+    return filename
+
+def save_results(results, args):
+    filename = time.strftime("%Y%m%d-%H%M%S") + "_" + args.name
+    path = args.output_path + "/" + filename
+    with open(path, 'w+') as f:
+        json.dump(results, f, indent=4)
+
+    print(f"Results saved to: {path}")
