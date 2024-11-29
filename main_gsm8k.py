@@ -62,21 +62,17 @@ async def run_inference(llm, reward_model, sampling_params, dataset, args):
     results = evaluate_predictions(all_preds, dataset, all_different_scores, args)
 
     print("\n**** Results ****")
-    print(results)
 
     total_tokens = node_generator.token_count + reward_model.token_count
-    print("Total tokens generated: ", total_tokens)
     results["total_tokens"] = estimate_token_count_at_k(all_preds, total_tokens, args.top_k)
 
-    results["config"] = OmegaConf.to_container(args, resolve = True)
-
-    print("Config")
-    print(args)
-
     end = time.time()
-    print("Time: ", end - start)
     results["time"] = estimate_time_at_k(all_preds, end - start, args.top_k)
 
+    
+    results["config"] = OmegaConf.to_container(args, resolve = True)
+
+    print(results)
     save_results(results, args)
 
 
