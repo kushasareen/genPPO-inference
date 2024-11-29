@@ -96,6 +96,11 @@ def verifier_at_k(scores, k):
     return sum(fracs)
 
 def weighted_majority_vote(answers: List[str], probs: List[float], grading_results, k, num_subsets) -> str:
+    if k > len(grading_results):
+        print("Warning: k is larger than the number of answers. Setting k to the number of answers.")
+        print("k vs number of answers:", k, len(grading_results))
+        k = len(grading_results)
+
     answers_np = np.array(answers)
     probs = np.array(probs)
     num_correct = 0
@@ -138,6 +143,15 @@ def powers_of_2_less_than(n):
     """Return a list of all powers of 2 less than n."""
     return [2 ** i for i in range(int(math.log2(n)) + 1)]
 
+def estimate_token_count_at_k(predictions, token_count, top_k):
+    min_solutions = min([len(sol) for sol in predictions]) 
+    ks = powers_of_2_less_than(min_solutions-1)
+    return {f"token_count@{k}":  (k/top_k)*token_count for k in ks}
+
+def estimate_time_at_k(predictions, time, top_k):
+    min_solutions = min([len(sol) for sol in predictions]) 
+    ks = powers_of_2_less_than(min_solutions-1)
+    return {f"time@{k}":  (k/top_k)*time for k in ks}
 
 def evaluate_predictions(predictions: List[List[str]] = None, references : Any = None, all_scores = None, args = None) -> Dict[str, float]:
     once_hit_acc = []
@@ -152,7 +166,9 @@ def evaluate_predictions(predictions: List[List[str]] = None, references : Any =
     best_of_n_acc = {aggregator: {} for aggregator in all_scores[0][0].keys()}
     weighted_majority_vote_acc = {aggregator: {} for aggregator in all_scores[0][0].keys()}
 
-    min_solutions = min([len(sol) for sol in predictions])
+    min_solutions = min([len(sol) for sol in predictions]) 
+    print(f"Min solutions: {min_solutions}")
+    print([len(sol) for sol in predictions])
     ks = powers_of_2_less_than(min_solutions-1)
     ns = powers_of_2_less_than(min_solutions-1)
 

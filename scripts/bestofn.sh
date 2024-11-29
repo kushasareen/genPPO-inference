@@ -1,5 +1,5 @@
 #!/bin/bash
-mode='bestofn'
+mode='bestofn_ckpt2'
 max_depth=10
 temp=0.35
 

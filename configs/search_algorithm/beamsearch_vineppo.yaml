@@ -15,7 +15,7 @@ verification_temp: 1.0 # check
 aggregator: "last" # min or product or id
 max_tokens: 512
 verification_question: "\nIs the solution likely to result in the correct answer (Yes/No)?\n"
-log_all_scores: false
+log_all_scores: true
 output_path: "/home/mila/k/kusha.sareen/scratch/genPPO/outputs"
 
 # LLM-as-a-Judge prompt "You are a math teacher. Grade the Solution, verifying correctness step by step. At the end of the Solution verification, when you give your final grade, write it in the form "Verification: Is the answer correct (Yes/No)? X", where X is either Yes or No.

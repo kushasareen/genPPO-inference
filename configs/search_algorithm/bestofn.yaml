@@ -3,14 +3,14 @@ input_path: "/network/scratch/k/kusha.sareen/genPPO/data/gsm8k/test"
 policy_model: "ReasoningMila/genppo_init_ckpt" # ReasoningMila/vineppo_baseline_ckpt
 reward_model: "ReasoningMila/genppo_init_ckpt" # ReasoningMila/vineppo_baseline_ckpt
 device: "cuda"
-max_depth: 10
+max_depth: 20
 n: 150
 top_k: 150
 search_algorithm: "bestofn"
 use_async: true
 download_dir: "/network/scratch/k/kusha.sareen/cache"
 generation_temp: 0.7 # 0.35
-verification_temp: 0.35
+verification_temp: 1.0
 aggregator: "sum" # sum or min or last or all
 max_tokens: 512
 verification_question: "\nIs the solution likely to result in the correct answer (Yes/No)?"

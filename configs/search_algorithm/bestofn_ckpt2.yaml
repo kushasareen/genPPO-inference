@@ -4,13 +4,13 @@ policy_model: "ReasoningMila/polIter_rho1bSft2_vineppo_GSM8K_ver_coeff_1e_1_from
 reward_model: "ReasoningMila/polIter_rho1bSft2_vineppo_GSM8K_ver_coeff_1e_1_from_vp_checkpoint"
 device: "cuda"
 max_depth: 10
-n: 150
-top_k: 150
+n: 200
+top_k: 200
 search_algorithm: "bestofn"
 use_async: true
 download_dir: "/network/scratch/k/kusha.sareen/cache"
 generation_temp: 0.7 # 0.35
-verification_temp: 0.35
+verification_temp: 1.0
 aggregator: "sum" # min or sum or last
 max_tokens: 512
 verification_question: "\nIs the solution likely to result in the correct answer (Yes/No)?\n"

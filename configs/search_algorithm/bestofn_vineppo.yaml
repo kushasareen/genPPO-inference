@@ -10,7 +10,7 @@ search_algorithm: "bestofn"
 use_async: true
 download_dir: "/network/scratch/k/kusha.sareen/cache"
 generation_temp: 0.7 # 0.35
-verification_temp: 0.35
+verification_temp: 1.0
 aggregator: "sum" # min or product or id
 max_tokens: 512
 verification_question: "\nIs the solution likely to result in the correct answer (Yes/No)?"

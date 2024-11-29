@@ -3,7 +3,7 @@ beam_size=4
 beam_width=4
 max_depth=10
 temp=0.7
-mode='beamsearch'
+mode='beamsearch_ckpt2'
 
 while getopts w:s:t:d flag
 do

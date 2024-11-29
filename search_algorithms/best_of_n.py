@@ -70,6 +70,6 @@ class BestOfNTree(Tree):
 
         # Return the top-K nodes from the final beam
         if len(terminal_nodes) == 0:
-            return heapq.nlargest(self.top_k, terminal_nodes + current_beam, key=lambda n: n.score)
+            return heapq.nlargest(self.top_k, current_beam, key=lambda n: n.score)
  
-        return heapq.nlargest(self.top_k, terminal_nodes, key=lambda n: n.score)
+        return heapq.nlargest(self.top_k, current_beam + terminal_nodes, key=lambda n: n.score)

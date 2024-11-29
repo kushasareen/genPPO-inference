@@ -2,7 +2,7 @@ import argparse
 import gc
 from reward_model import GenVinePPOVerifier
 from tree import TreeNode
-from verify_gsm8k import evaluate_predictions
+from verify_gsm8k import evaluate_predictions, estimate_token_count_at_k, estimate_time_at_k
 import time
 from utils import get_search_tree_and_generator, load_dataset, load_model, save_results
 import asyncio
@@ -22,20 +22,20 @@ def main(cfg):
         reward_llm, _, _, _ = load_model(args.reward_model, args)
 
     reward_model = GenVinePPOVerifier(args, reward_llm, tokenizer)
-    start = time.time()
     asyncio.run(run_inference(llm, reward_model, sampling_params, dataset, args))
-    end = time.time()
-    print("Time: ", end - start)
 
 
 async def run_inference(llm, reward_model, sampling_params, dataset, args):
+    start = time.time()
+
     all_gts = []
     all_preds = []
     all_top_results = []
     tasks = []
     all_different_scores = []
 
-    for i in range(len(dataset)):
+    # for i in range(len(dataset)):
+    for i in range(3):
         sample = dataset[i]
         question = sample['question']
         answer = sample['answer']
@@ -63,13 +63,21 @@ async def run_inference(llm, reward_model, sampling_params, dataset, args):
 
     print("\n**** Results ****")
     print(results)
-    print("Total tokens generated: ", node_generator.token_count + reward_model.token_count)
-    results["total_tokens"] = node_generator.token_count + reward_model.token_count
+
+    total_tokens = node_generator.token_count + reward_model.token_count
+    print("Total tokens generated: ", total_tokens)
+    results["total_tokens"] = estimate_token_count_at_k(all_preds, total_tokens, args.top_k)
+
     results["config"] = OmegaConf.to_container(args, resolve = True)
-    save_results(results, args)
 
     print("Config")
     print(args)
+
+    end = time.time()
+    print("Time: ", end - start)
+    results["time"] = estimate_time_at_k(all_preds, end - start, args.top_k)
+
+    save_results(results, args)
 
 
 if __name__ == "__main__":
