@@ -1,10 +1,11 @@
 import argparse
 import gc
-from reward_model import GenVinePPOVerifier
+from reward_model import GenVinePPOVerifier, LLMAsAJudge
 from tree import TreeNode
 from verify_gsm8k import evaluate_predictions, estimate_token_count_at_k, estimate_time_at_k
 import time
-from utils import get_search_tree_and_generator, load_dataset, load_model, save_results, get_reward_model
+from utils import get_search_tree_and_generator, load_dataset, load_model, save_results, get_reward_model, get_llm
+from vllm import SamplingParams
 import asyncio
 import hydra
 import numpy as np
@@ -15,13 +16,12 @@ def main(cfg):
     args = cfg.search_algorithm
     print(args)
     dataset = load_dataset(args)
-    llm, sampling_params, stop_tokens, tokenizer = load_model(args.policy_model, args)
-    if args.reward_model==args.policy_model:
-        reward_llm = llm
-    else:
-        reward_llm, _, _, _ = load_model(args.reward_model, args)
+    llm, tokenizer = get_llm(args.policy_model, args)
+    stop_words = [tokenizer.eos_token if tokenizer is not None and tokenizer.eos_token is not None else '</s>'] # \n no longer in stop words
+    sampling_params = SamplingParams(temperature=args.generation_temp, max_tokens=args.max_tokens, stop=stop_words)
+    assert args.reward_model==args.policy_model
 
-    reward_model = GenVinePPOVerifier(args, reward_llm, tokenizer)
+    reward_model = LLMAsAJudge(args, llm, tokenizer)
     asyncio.run(run_inference(llm, reward_model, sampling_params, dataset, args))
 
 
@@ -35,17 +35,17 @@ async def run_inference(llm, reward_model, sampling_params, dataset, args):
     all_different_scores = []
 
     for i in range(len(dataset)):
-    # for i in range(3):
         sample = dataset[i]
         question = sample['question']
         answer = sample['answer']
         all_gts.append(answer) 
         prompt = '[MATH_TASK] ' + "Problem:\n" + question + '\n\nSolution:\n' # prompt should match training data format
         root = TreeNode(state = {'text' : prompt, 'logprob' : 0, 'token' : '', 'step_solution' : '', 'full_feedback' : ''}, 
-                        score = 0, parent = None, depth = 0, all_scores = {"sum": 0, "min": 0, "last": 0} if args.log_all_scores else {args.aggregator: 0}) # 0 = 1 for logprobs
-        tree, node_generator = get_search_tree_and_generator(root, llm, reward_model, sampling_params, args)
+                        score = 0, parent = None, depth = 0, all_scores = {args.aggregator: 0}) # 0 = 1 for logprobs
+        
+        _, node_generator = get_search_tree_and_generator(root, llm, reward_model, sampling_params, args)
 
-        tasks.append(asyncio.create_task(tree.search(generate_children=node_generator, max_depth=args.max_depth)))
+        tasks.append(asyncio.create_task(node_generator(root, width=args.top_k)))
         gc.collect()
 
     all_top_nodes = [await task for task in tasks]

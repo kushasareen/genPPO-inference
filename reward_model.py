@@ -54,11 +54,35 @@ class GenVinePPOVerifier(torch.nn.Module):
 
         self.verification_question = args.verification_question
         self.token_count = 0
+        self.args = args
+
+    def get_verification_prompt(self, problem, solution):
+        return problem + solution + self.verification_question
+        
+    def get_score(self, response):
+        if len(response.outputs) == 0 or len(response.outputs[0].logprobs) == 0:
+            score = -100.0
+            token = 'N/A'
+            feedback = 'N/A'
+            return score, token, feedback
+
+        first_output = response.outputs[0].logprobs[0]
+        if self.yes_token_id in first_output: # if yes token is in the top 20 logprobs (it should always be), score is the logprob of yes token
+            score = first_output[self.yes_token_id].logprob
+
+        else: # otherwise, we set the score to -100
+            score = -100.0
+
+        token = response.outputs[0].text
+        feedback = response.outputs[0].text
+
+        return score, token, feedback
+
 
     async def forward(self, prompt, solutions): 
         verification_prompts = []
         for solution in solutions:
-            verification_prompt = prompt + solution + self.verification_question
+            verification_prompt = self.get_verification_prompt(prompt, solution)
             verification_prompts.append(verification_prompt)
         
         tasks = []
@@ -75,26 +99,37 @@ class GenVinePPOVerifier(torch.nn.Module):
         tokens = []
         full_feedbacks = []
         for response, solution in zip(responses, solutions):
+            score, token, feedback = self.get_score(response)
 
-            ##TODO: should check if it's totally correct!just ad-hoc for debugging
-            if len(response.outputs) == 0 or len(response.outputs[0].logprobs) == 0:
-                score = -100.0
-                token = 'N/A'
-                logprobs.append(score)
-                tokens.append(token)
-                full_feedbacks.append("n/a")
-                continue
-
-            first_output = response.outputs[0].logprobs[0]
-            if self.yes_token_id in first_output: # if yes token is in the top 20 logprobs (it should always be), score is the logprob of yes token
-                score = first_output[self.yes_token_id].logprob
-
-            else: # otherwise, we set the score to -100
-                score = -100.0
-
-            token = response.outputs[0].text
             tokens.append(token)
             logprobs.append(score)
-            full_feedbacks.append(response.outputs[0].text)
+            full_feedbacks.append(feedback)
             
         return logprobs, tokens, full_feedbacks
+
+class LLMAsAJudge(GenVinePPOVerifier): # this should be done only at the end, not step by step...idk how to deal with this, will need to modify generator.py
+    def __init__(self, args, vllm_model, tokenizer):
+        super().__init__(args, vllm_model, tokenizer)
+        self.sampling_params = SamplingParams(temperature=args.verification_temp, max_tokens=512, logprobs=20)
+
+    def get_verification_prompt(self, problem, solution):
+        return f"You are a math teacher. Grade the Solution, verifying correctness step by step. At the end of the Solution verification, when you give your final grade, write it in the form \"Verification: Is the answer correct (Yes/No)? X\", where X is either Yes or No. \n Question: {problem}\nSolution: {solution}\n"
+    
+    def get_score(self, response): # can also do some parsing, for now just take the last token
+        if len(response.outputs) == 0 or len(response.outputs[0].logprobs) == 0:
+            score = -100.0
+            token = 'N/A'
+            feedback = 'N/A'
+            return score, token, feedback
+
+        last_output = response.outputs[-1].logprobs[0]
+        if self.yes_token_id in last_output: # if yes token is in the top 20 logprobs (it should always be), score is the logprob of yes token
+            score = last_output[self.yes_token_id].logprob
+
+        else: # otherwise, we set the score to -100
+            score = -100.0
+
+        token = response.outputs[0].text
+        feedback = response.outputs[0].text
+
+        return score, token, feedback

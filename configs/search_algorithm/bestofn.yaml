@@ -16,3 +16,4 @@ max_tokens: 512
 verification_question: "\nIs the solution likely to result in the correct answer (Yes/No)?"
 log_all_scores: true
 output_path: "/home/mila/k/kusha.sareen/scratch/genPPO/outputs"
+llm_as_judge: false

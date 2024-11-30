@@ -1,17 +1,7 @@
 #!/bin/bash
-mode='bestofn_ckpt2'
-max_depth=10
-temp=0.7
+mode='bestofn_vineppo'
 
-while getopts n:t:d flag
-do
-    case "${flag}" in
-        d) max_depth=${OPTARG};;
-        t) temp=${OPTARG};;
-    esac
-done
-
-NAME="${mode}_d${max_depth}_t${temp}";
+NAME="${mode}";
 echo $NAME
 sbatch <<EOT
 #!/bin/bash
@@ -30,5 +20,5 @@ conda activate genPPO
 
 unset CUDA_VISIBLE_DEVICES
 
-python3 main_gsm8k.py search_algorithm=$mode search_algorithm.max_depth=$max_depth search_algorithm.generation_temp=$temp
+python3 llm_as_judge_gsm8k.py search_algorithm=$mode
 EOT

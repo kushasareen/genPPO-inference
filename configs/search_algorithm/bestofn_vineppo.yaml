@@ -4,20 +4,15 @@ policy_model: "ReasoningMila/vineppo_baseline_ckpt" # ReasoningMila/vineppo_base
 reward_model: "ReasoningMila/vineppo_baseline_ckpt" # ReasoningMila/vineppo_baseline_ckpt
 device: "cuda"
 max_depth: 10
-n: 150
-top_k: 150
+n: 90
+top_k: 90
 search_algorithm: "bestofn"
 use_async: true
 download_dir: "/network/scratch/k/kusha.sareen/cache"
-generation_temp: 0.7 # 0.35
-verification_temp: 1.0
-aggregator: "sum" # min or product or id
+generation_temp: 0.35 # 0.35
+verification_temp: 0.35
+aggregator: "last" # min or product or id
 max_tokens: 512
-verification_question: "\nIs the solution likely to result in the correct answer (Yes/No)?"
-
-# LLM-as-a-Judge prompt "You are a math teacher. Grade the Solution, verifying correctness step by step. At the end of the Solution verification, when you give your final grade, write it in the form "Verification: Is the answer correct (Yes/No)? X", where X is either Yes or No.
-# Question: {problem}
-# Solution: {solution}
-# "
-
-# TODO
+verification_question: "" # uses llm as judge instead
+log_all_scores: false
+output_path: "/home/mila/k/kusha.sareen/scratch/genPPO/outputs"

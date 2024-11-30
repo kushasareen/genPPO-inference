@@ -2,6 +2,7 @@ from search_algorithms.beam_search import BeamSearchTree
 from search_algorithms.best_of_n import BestOfNTree
 from search_algorithms.rebase import RebaseTree
 from generator import NodeGenerator, AsyncNodeGenerator
+from reward_model import GenVinePPOVerifier, LLMAsAJudge
 from vllm import LLM, SamplingParams, AsyncLLMEngine
 from vllm.engine.arg_utils import AsyncEngineArgs
 from datasets import Dataset
@@ -113,3 +114,9 @@ def save_results(results, args):
         json.dump(results, f, indent=4)
 
     print(f"Results saved to: {path}")
+
+def get_reward_model(args):
+    if args.llm_as_judge:
+        return LLMAsAJudge
+    else:
+        return GenVinePPOVerifier

@@ -58,9 +58,6 @@ class BestOfNTree(Tree):
                     
                 node.add_child(child)  # Add the child to the parent node
 
-            # if len(terminal_nodes) > 16:
-                # break
-
             # If no more nodes are available to explore, stop
             if not next_beam:
                 break
