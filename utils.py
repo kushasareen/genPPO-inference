@@ -27,8 +27,8 @@ def get_search_tree_and_generator(root , llm, reward_model, sampling_params, arg
         generator_type = NodeGenerator
 
     if args.search_algorithm == "beamsearch":
-        tree = BeamSearchTree(root=root, beam_width=args.beam_width)
-        generator = generator_type(llm, reward_model, args.beam_width, sampling_params, args=args)
+        tree = BeamSearchTree(root=root, beam_size=args.beam_size, beam_width=args.beam_width, top_k=args.top_k)
+        generator = generator_type(llm, reward_model, num_children=args.beam_width, sampling_params=sampling_params, args=args)
     elif args.search_algorithm == "bestofn":
         tree =  BestOfNTree(root=root, n=args.n, top_k = args.top_k)
         generator = generator_type(llm, reward_model, num_children=1, sampling_params=sampling_params, args=args)
@@ -114,6 +114,15 @@ def save_results(results, args):
         json.dump(results, f, indent=4)
 
     print(f"Results saved to: {path}")
+
+def save_estimates(results, args):
+    filename = "mc_estimates_"+ time.strftime("%Y%m%d-%H%M%S") + "_" + args.name
+    path = args.output_path + "/" + filename
+    with open(path, 'w+') as f:
+        json.dump(results, f, indent=4)
+
+    print(f"Results saved to: {path}")
+
 
 def get_reward_model(args):
     if args.llm_as_judge:

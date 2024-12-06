@@ -1,6 +1,7 @@
 import argparse
 import gc
 from reward_model import GenVinePPOVerifier
+from mc_estimator import MonteCarloEstimator
 from tree import TreeNode
 from verify_gsm8k import evaluate_predictions, estimate_token_count_at_k, estimate_time_at_k
 import time
@@ -22,10 +23,16 @@ def main(cfg):
         reward_llm, _, _, _ = load_model(args.reward_model, args)
 
     reward_model = GenVinePPOVerifier(args, reward_llm, tokenizer)
-    asyncio.run(run_inference(llm, reward_model, sampling_params, dataset, args))
+    estimator = MonteCarloEstimator(llm, args)
+    asyncio.run(run_validation(llm, reward_model, estimator, sampling_params, dataset, args))
 
 
-async def run_inference(llm, reward_model, sampling_params, dataset, args):
+async def run_validation(llm, reward_model, estimator, sampling_params, dataset, args): # TODO: adapt this for validation
+
+    # save data to a file
+    # will write a script to generate the graphs later on
+    # can log accuracy vs. step
+    
     start = time.time()
 
     all_gts = []
@@ -35,8 +42,7 @@ async def run_inference(llm, reward_model, sampling_params, dataset, args):
     all_different_scores = []
 
     for i in range(len(dataset)):
-    # for i in range(20):
-    # for i in range(5):
+    # for i in range(3):
         sample = dataset[i]
         question = sample['question']
         answer = sample['answer']
@@ -46,29 +52,43 @@ async def run_inference(llm, reward_model, sampling_params, dataset, args):
                         score = 0, parent = None, depth = 0, all_scores = {"sum": 0, "min": 0, "last": 0} if args.log_all_scores else {args.aggregator: 0}) # 0 = 1 for logprobs
         tree, node_generator = get_search_tree_and_generator(root, llm, reward_model, sampling_params, args)
 
+        # search should be best of n sampling
         tasks.append(asyncio.create_task(tree.search(generate_children=node_generator, max_depth=args.max_depth)))
         gc.collect()
 
     all_top_nodes = [await task for task in tasks]
+    all_paths = []
+    path_scores = []
 
-    for top_nodes in all_top_nodes:
+    for top_nodes in all_top_nodes: # FIX!!!!!!
         predictions = [node.state['text'] for node in top_nodes]
         all_preds.append(predictions)
         all_top_results.append(top_nodes[0])
         different_scores = [{k: np.exp(v) for k, v in node.all_scores.items()} for node in top_nodes]
         all_different_scores.append(different_scores)
+        for node in top_nodes:
+            path = node.path()
+            all_paths.append(path)
+            path_scores.append([node.score for node in path])
 
-    print("\n**** Evaluating ****")
-    results = evaluate_predictions(all_preds, dataset, all_different_scores, args)
+        
+    sampled_nodes = top_nodes # TODO: sample some nodes from the path
+    
+    tasks = []
+    for idx, nodes in enumerate(sampled_nodes):
+        sample = dataset[idx] # nodes for a given quesion
+        for node in nodes:
+            tasks.append(asyncio.create_task(estimator.estimate(node[0], sample))) 
 
-    print("\n**** Results ****")
+    all_estimates = [await task for task in tasks]
 
-    total_tokens = node_generator.token_count + reward_model.token_count
-    results["total_tokens"] = estimate_token_count_at_k(all_preds, total_tokens, args.top_k)
-
+    results = {}
+    results["model output"] = None
+    results["ground truth"] = all_estimates
+    total_tokens = node_generator.token_count
+    results["total_tokens"] = total_tokens
     end = time.time()
-    results["time"] = estimate_time_at_k(all_preds, end - start, args.top_k)
-
+    results["time"] = start - end
     results["config"] = OmegaConf.to_container(args, resolve = True)
 
     print(results)
