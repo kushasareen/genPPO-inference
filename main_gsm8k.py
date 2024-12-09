@@ -21,7 +21,7 @@ def main(cfg):
     else:
         reward_llm, _, _, _ = load_model(args.reward_model, args)
 
-    reward_model = GenVinePPOVerifier(args, reward_llm, tokenizer)
+    reward_model = get_reward_model(args, reward_llm, tokenizer)
     asyncio.run(run_inference(llm, reward_model, sampling_params, dataset, args))
 
 
@@ -34,9 +34,8 @@ async def run_inference(llm, reward_model, sampling_params, dataset, args):
     tasks = []
     all_different_scores = []
 
-    for i in range(len(dataset)):
-    # for i in range(20):
-    # for i in range(5):
+    # for i in range(len(dataset)):
+    for i in range(5):
         sample = dataset[i]
         question = sample['question']
         answer = sample['answer']

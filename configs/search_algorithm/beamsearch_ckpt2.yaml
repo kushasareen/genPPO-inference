@@ -6,7 +6,7 @@ device: "cuda"
 beam_width: 4
 max_depth: 20
 beam_size: 32
-top_k: 32
+top_k: 100
 search_algorithm: "beamsearch"
 use_async: true
 download_dir: "/network/scratch/k/kusha.sareen/cache"

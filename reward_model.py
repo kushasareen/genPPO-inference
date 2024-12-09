@@ -26,7 +26,7 @@ class MathSphereRewardModel(torch.nn.Module):
         self.device = args.device
         self.token_count = 0
 
-    def forward(self, question, solution):
+    def get_score_from_model(self, question, solution):
         if len(solution) == 0:
             input_for_prm = f"{question} {self.step_tag}"
         elif solution[-1] != self.step_tag:
@@ -40,7 +40,20 @@ class MathSphereRewardModel(torch.nn.Module):
             log_prob = scores.log()
             step_log_prob = log_prob[input_id == self.step_tag_id]
             step_log_prob = step_log_prob.cpu()[-1].item()
+
         return step_log_prob
+    
+    async def forward(self, prompt, solutions):
+        tasks = []
+
+        for solution in solutions:
+            tasks.append(asyncio.create_task(self.get_score_from_model(prompt, solution)))
+
+        logprobs = [await task for task in tasks]
+
+        tokens = ['N/A'] * len(solutions)
+        full_feedbacks = ['N/A'] * len(solutions)
+        return logprobs, tokens, full_feedbacks
 
 class GenVinePPOVerifier(torch.nn.Module):
     def __init__(self, args, vllm_model, tokenizer):
@@ -107,7 +120,7 @@ class GenVinePPOVerifier(torch.nn.Module):
             
         return logprobs, tokens, full_feedbacks
 
-class LLMAsAJudge(GenVinePPOVerifier): # this should be done only at the end, not step by step...idk how to deal with this, will need to modify generator.py
+class LLMAsAJudge(GenVinePPOVerifier):
     def __init__(self, args, vllm_model, tokenizer):
         super().__init__(args, vllm_model, tokenizer)
         self.sampling_params = SamplingParams(temperature=args.verification_temp, max_tokens=512, logprobs=20)
@@ -122,7 +135,7 @@ class LLMAsAJudge(GenVinePPOVerifier): # this should be done only at the end, no
             feedback = 'N/A'
             return score, token, feedback
 
-        last_output = response.outputs[-1].logprobs[0]
+        last_output = response.outputs[0].logprobs[-1] # double check
         if self.yes_token_id in last_output: # if yes token is in the top 20 logprobs (it should always be), score is the logprob of yes token
             score = last_output[self.yes_token_id].logprob
 

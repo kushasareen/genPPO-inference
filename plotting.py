@@ -116,12 +116,13 @@ def plot_best_comparison(data, title="Scaling Test-Time Compute", ylabel='Accura
             if method_name == "Sampling (VinePPO)":
                 subcat_name = "solution"
 
+
             plt.plot(x_values, y_values, label=f"{category_to_name[category]} ({subcat_name}) + {method_name}", color=color)
         else:
             # Plot main category (e.g., pass_at_k)
             x_values = get_first_n_powers_of_two(len(content[category]))
             y_values = list(content[category].values())
-            plt.plot(x_values, y_values, label=method_name, color=color)
+            plt.plot(x_values, y_values, label=f"{category_to_name[category]} + {method_name}", color=color)
 
     # Formatting the plot
     plt.title(title if title else category.replace("_", " ").capitalize(), fontsize=20)

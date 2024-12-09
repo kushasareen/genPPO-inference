@@ -2,7 +2,7 @@ from search_algorithms.beam_search import BeamSearchTree
 from search_algorithms.best_of_n import BestOfNTree
 from search_algorithms.rebase import RebaseTree
 from generator import NodeGenerator, AsyncNodeGenerator
-from reward_model import GenVinePPOVerifier, LLMAsAJudge
+from reward_model import GenVinePPOVerifier, LLMAsAJudge, MathSphereRewardModel
 from vllm import LLM, SamplingParams, AsyncLLMEngine
 from vllm.engine.arg_utils import AsyncEngineArgs
 from datasets import Dataset
@@ -41,6 +41,7 @@ def get_search_tree_and_generator(root , llm, reward_model, sampling_params, arg
     return tree, generator
 
 def get_llm(model_name, args):
+    gpu_memory_utilization = 0.4 if args.name == "rebase_rm" else 0.99
     if args.use_async: 
         llm = AsyncLLMEngine.from_engine_args(
         AsyncEngineArgs(
@@ -48,7 +49,7 @@ def get_llm(model_name, args):
             dtype='float16',
             enforce_eager=True,
             download_dir= args.download_dir,
-            gpu_memory_utilization=0.99,
+            gpu_memory_utilization=gpu_memory_utilization,
             swap_space=3,
             max_model_len=2048,
             kv_cache_dtype="fp8_e5m2",
@@ -124,8 +125,8 @@ def save_estimates(results, args):
     print(f"Results saved to: {path}")
 
 
-def get_reward_model(args):
-    if args.llm_as_judge:
-        return LLMAsAJudge
+def get_reward_model(args, reward_llm, tokenizer):
+    if args.name == "rebase_rm":
+        return MathSphereRewardModel(args, tokenizer)
     else:
-        return GenVinePPOVerifier
+        return GenVinePPOVerifier(args, reward_llm, tokenizer)
