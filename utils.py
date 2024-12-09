@@ -41,7 +41,9 @@ def get_search_tree_and_generator(root , llm, reward_model, sampling_params, arg
     return tree, generator
 
 def get_llm(model_name, args):
-    gpu_memory_utilization = 0.4 if args.name == "rebase_rm" else 0.99
+    gpu_memory_utilization = 0.5 if args.name == "rebase_rm" else 0.99
+    max_model_len = 2048
+    print("GPU Usage and Max Model Len:", gpu_memory_utilization, max_model_len)
     if args.use_async: 
         llm = AsyncLLMEngine.from_engine_args(
         AsyncEngineArgs(
@@ -51,7 +53,7 @@ def get_llm(model_name, args):
             download_dir= args.download_dir,
             gpu_memory_utilization=gpu_memory_utilization,
             swap_space=3,
-            max_model_len=2048,
+            max_model_len=max_model_len,
             kv_cache_dtype="fp8_e5m2",
             tensor_parallel_size=1, # needs to be more than 1 for tensor parallelism
             disable_log_requests=True
