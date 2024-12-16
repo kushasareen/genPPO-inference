@@ -30,6 +30,7 @@ sbatch <<EOT
 #SBATCH --mem=32G
 #SBATCH --cpus-per-task=4
 #SBATCH --time=24:00:00
+#SBATCH --constraint=48gb
 
 module load anaconda
 cd /home/mila/k/kusha.sareen/genPPO/genPPO-inference

@@ -166,7 +166,9 @@ def evaluate_predictions(predictions: List[List[str]] = None, references : Any =
     best_of_n_acc = {aggregator: {} for aggregator in all_scores[0][0].keys()}
     weighted_majority_vote_acc = {aggregator: {} for aggregator in all_scores[0][0].keys()}
 
-    min_solutions = min([len(sol) for sol in predictions]) 
+    ### filter those that only have 1 solution ###
+    predictions = list(filter(lambda sol: len(sol) > 1, predictions))
+    min_solutions = min([len(sol) for sol in predictions])
     print(f"Min solutions: {min_solutions}")
     print([len(sol) for sol in predictions])
     ks = powers_of_2_less_than(min_solutions-1)

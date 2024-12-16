@@ -1,0 +1,29 @@
+[2024-12-09 15:28:34,273][root][INFO] - lm_eval is not installed, GPTQ may not be usable
+[2024-12-09 15:28:48,200][asyncio][ERROR] - Task exception was never retrieved
+future: <Task finished name='Task-9' coro=<RebaseTree.search() done, defined at /home/mila/k/khang.ngo/search_llm/genPPO-inference/search_algorithms/rebase.py:34> exception=TypeError('a coroutine was expected, got -0.04595947265625')>
+Traceback (most recent call last):
+  File "/home/mila/k/khang.ngo/search_llm/genPPO-inference/search_algorithms/rebase.py", line 57, in search
+    children = await generate_children(node, widths[idx])
+  File "/home/mila/k/khang.ngo/search_llm/genPPO-inference/generator.py", line 97, in __call__
+    logprobs, tokens, full_feedbacks = await self.reward_model(prompt, solutions)
+  File "/home/mila/k/khang.ngo/search_llm/genPPO-inference/reward_model.py", line 51, in forward
+    tasks.append(asyncio.create_task(self.get_score_from_model(prompt, solution)))
+  File "/network/scratch/k/khang.ngo/envs/llm/lib/python3.10/asyncio/tasks.py", line 337, in create_task
+    task = loop.create_task(coro)
+  File "/network/scratch/k/khang.ngo/envs/llm/lib/python3.10/asyncio/base_events.py", line 438, in create_task
+    task = tasks.Task(coro, loop=self, name=name)
+TypeError: a coroutine was expected, got -0.04595947265625
+[2024-12-09 15:28:48,202][asyncio][ERROR] - Task exception was never retrieved
+future: <Task finished name='Task-11' coro=<RebaseTree.search() done, defined at /home/mila/k/khang.ngo/search_llm/genPPO-inference/search_algorithms/rebase.py:34> exception=TypeError('a coroutine was expected, got -0.92626953125')>
+Traceback (most recent call last):
+  File "/home/mila/k/khang.ngo/search_llm/genPPO-inference/search_algorithms/rebase.py", line 57, in search
+    children = await generate_children(node, widths[idx])
+  File "/home/mila/k/khang.ngo/search_llm/genPPO-inference/generator.py", line 97, in __call__
+    logprobs, tokens, full_feedbacks = await self.reward_model(prompt, solutions)
+  File "/home/mila/k/khang.ngo/search_llm/genPPO-inference/reward_model.py", line 51, in forward
+    tasks.append(asyncio.create_task(self.get_score_from_model(prompt, solution)))
+  File "/network/scratch/k/khang.ngo/envs/llm/lib/python3.10/asyncio/tasks.py", line 337, in create_task
+    task = loop.create_task(coro)
+  File "/network/scratch/k/khang.ngo/envs/llm/lib/python3.10/asyncio/base_events.py", line 438, in create_task
+    task = tasks.Task(coro, loop=self, name=name)
+TypeError: a coroutine was expected, got -0.92626953125

@@ -5,3 +5,5 @@ __pycache__
 run_test.sh
 logs/*
 logs
+outputs/*
+outputs

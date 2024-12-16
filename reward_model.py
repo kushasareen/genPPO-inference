@@ -26,7 +26,7 @@ class MathSphereRewardModel(torch.nn.Module):
         self.device = args.device
         self.token_count = 0
 
-    def get_score_from_model(self, question, solution):
+    async def get_score_from_model(self, question, solution):
         if len(solution) == 0:
             input_for_prm = f"{question} {self.step_tag}"
         elif solution[-1] != self.step_tag:
@@ -40,7 +40,6 @@ class MathSphereRewardModel(torch.nn.Module):
             log_prob = scores.log()
             step_log_prob = log_prob[input_id == self.step_tag_id]
             step_log_prob = step_log_prob.cpu()[-1].item()
-
         return step_log_prob
     
     async def forward(self, prompt, solutions):

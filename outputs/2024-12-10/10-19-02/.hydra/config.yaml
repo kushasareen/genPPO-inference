@@ -1,0 +1,20 @@
+search_algorithm:
+  name: rebase_rm
+  input_path: /network/scratch/k/khang.ngo/gen_vineppo/data/gsm8k/test
+  policy_model: ReasoningMila/vineppo_baseline_ckpt
+  reward_model: peiyi9979/math-shepherd-mistral-7b-prm
+  device: cuda
+  max_depth: 20
+  top_k: 32
+  expansion_temp: 0.1
+  search_algorithm: beamsearch
+  use_async: true
+  download_dir: /network/scratch/k/khang.ngo/cache
+  generation_temp: 0.7
+  verification_temp: 1.0
+  aggregator: last
+  max_tokens: 512
+  verification_question: ''
+  log_all_scores: true
+  output_path: /network/scratch/k/khang.ngo/gen_vineppo/outputs
+  llm_as_judge: false

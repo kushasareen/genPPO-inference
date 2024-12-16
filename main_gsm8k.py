@@ -34,8 +34,8 @@ async def run_inference(llm, reward_model, sampling_params, dataset, args):
     tasks = []
     all_different_scores = []
 
-    # for i in range(len(dataset)):
-    for i in range(5):
+    for i in range(len(dataset)):
+    # for i in range(5):
         sample = dataset[i]
         question = sample['question']
         answer = sample['answer']
