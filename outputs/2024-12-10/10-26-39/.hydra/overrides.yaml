@@ -1,6 +1,0 @@
-- search_algorithm=beamsearch_rm
-- search_algorithm.max_depth=20
-- search_algorithm.expansion_temp=0.1
-- search_algorithm.generation_temp=0.7
-- search_algorithm.top_k=32
-- search_algorithm.verification_temp=1.0
