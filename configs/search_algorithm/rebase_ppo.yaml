@@ -1,7 +1,7 @@
-name: "rebase"
+name: "rebase_ppo"
 input_path: "/network/scratch/k/kusha.sareen/genPPO/data/gsm8k/test"
-policy_model: "ReasoningMila/genppo_init_ckpt" # edit ckpt
-reward_model: "ReasoningMila/genppo_init_ckpt"
+policy_model: "/home/mila/k/kusha.sareen/scratch/genPPO/ppo_gsm_7b_ckpt_iter_0015_epoch_2.00_step_0240" # must be an absolute path
+reward_model: "/home/mila/k/kusha.sareen/scratch/genPPO/ppo_gsm_7b_ckpt_iter_0015_epoch_2.00_step_0240"
 device: "cuda"
 max_depth: 20
 top_k: 32 # top k is the initial budget for rebase
@@ -13,13 +13,14 @@ generation_temp: 0.7 # 0.35
 verification_temp: 1.0
 aggregator: "last" # min or sum or last
 max_tokens: 512
-verification_question: "\nIs the solution likely to result in the correct answer (Yes/No)?\n"
+verification_question: ""
 log_all_scores: true
 output_path: "/home/mila/k/kusha.sareen/scratch/genPPO/outputs"
 llm_as_judge: false
-ppo: false
+ppo: true
 use_advantage: false
-orm_avg: false
+ppo_prm_mode: "mean_step" # last, mean_all, mean_step
+orm_avg: true
 dataset: "gsm8k" # gsm8k or math
 seed: 0
 num_samples: -1

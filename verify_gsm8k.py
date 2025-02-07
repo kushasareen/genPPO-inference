@@ -6,6 +6,9 @@ import itertools
 import numpy as np
 from itertools import combinations
 import scipy.special as scsp
+from verify_math import grade_answer_math, extract_answer_math
+from math_grader import math_equal
+from parser_math import extract_answer as extract_answer_math_parser
 
 FIND_NUMBERS_REGEX = re.compile(
     r"(?:[+-]?\d+\.\d*|[+-]?\.\d+|[+-]?\d+e[-+]?\d+|[+-]?\d+)"
@@ -174,24 +177,44 @@ def evaluate_predictions(predictions: List[List[str]] = None, references : Any =
     ks = powers_of_2_less_than(min_solutions-1)
     ns = powers_of_2_less_than(min_solutions-1)
 
+    ks.append(min_solutions-1)
+    ns.append(min_solutions-1)
+
 
     for idx, (solution_candidates, ref) in enumerate(zip(predictions, references)):
-        gold_answer = extract_gold_answer_from_text(ref["answer"])
-    
-        assert len(solution_candidates) > 0
-        answer_candidates = [
-            extract_predicted_answer_from_text(sol)
-            for sol in solution_candidates
-        ]
-        none_answer_extracted.append(
-            sum([1 for ans in answer_candidates if ans is None])
-            / len(answer_candidates)
-        )
+        if args.dataset == "gsm8k":
+            gold_answer = extract_gold_answer_from_text(ref["answer"])
+            
+            assert len(solution_candidates) > 0
+            answer_candidates = [
+                extract_predicted_answer_from_text(sol)
+                for sol in solution_candidates
+            ]
+            none_answer_extracted.append(
+                sum([1 for ans in answer_candidates if ans is None])
+                / len(answer_candidates)
+            )
 
-        grading_results = [
-            grade_answer(given_answer=ans, ground_truth=gold_answer, item=ref)
-            for ans in answer_candidates
-        ]
+            grading_results = [
+                grade_answer(given_answer=ans, ground_truth=gold_answer, item=ref)
+                for ans in answer_candidates
+            ]
+        elif args.dataset == "math":
+            gold_answer = ref["answer"]
+            answer_candidates = [
+                extract_answer_math_parser(sol, data_name = "math")
+                for sol in solution_candidates
+            ]
+            none_answer_extracted.append(
+                sum([1 for ans in answer_candidates if ans is None])
+                / len(answer_candidates)
+            )
+            grading_results = [
+                grade_answer_math(given_answer=ans, ground_truth=gold_answer)
+                for ans in answer_candidates
+            ]
+        else:
+            raise ValueError("Unknown dataset")
 
         top1 = grading_results[0]
         
@@ -254,7 +277,6 @@ def evaluate_predictions(predictions: List[List[str]] = None, references : Any =
         "none_answer_extracted_frac_per_problem": (
             sum(none_answer_extracted) / len(none_answer_extracted)
         ),}
-    
     
     results_dict = {"base_results": base_results, 
                     "pass_at_k": pass_at_k, 

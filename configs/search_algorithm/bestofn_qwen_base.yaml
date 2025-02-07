@@ -1,0 +1,25 @@
+name: "bestofn_qwen_base"
+input_path: "/network/scratch/k/kusha.sareen/genPPO/data/math/test"
+policy_model: "/home/mila/k/kusha.sareen/scratch/genPPO/Qwen2.5-Math-1.5B-Instruct" # ReasoningMila/vineppo_baseline_ckpt
+reward_model: "/home/mila/k/kusha.sareen/scratch/genPPO/Qwen2.5-Math-1.5B-Instruct" # ReasoningMila/vineppo_baseline_ckpt
+device: "cuda"
+max_depth: 20
+n: 100
+top_k: 100
+search_algorithm: "bestofn"
+use_async: true
+download_dir: "/network/scratch/k/kusha.sareen/cache"
+generation_temp: 0.7 # 0.35
+verification_temp: 1.0
+aggregator: "last" # min or product or id
+max_tokens: 512
+verification_question: "" # uses llm as judge instead
+log_all_scores: false # should be false whenever only using orm
+output_path: "/home/mila/k/kusha.sareen/scratch/genPPO/outputs"
+llm_as_judge: true
+ppo: false
+use_advantage: false
+orm_avg: false
+dataset: "math" # gsm8k or math
+seed: 0
+num_samples: -1

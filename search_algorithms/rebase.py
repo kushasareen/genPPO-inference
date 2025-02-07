@@ -22,14 +22,24 @@ class RebaseTree(Tree):
     at each depth level based on their cumulative value.
     """
 
-    def __init__(self, root: TreeNode, expansion_temp: float, top_k: int = None):
+    def __init__(self, root: TreeNode, expansion_temp: float, top_k: int = None, use_advantage: bool = False):
         super().__init__(root)  # Initializwidthse the base Tree with the root
         self.expansion_temp = expansion_temp  # Maximum number of nodes to retain per level
         self.top_k = top_k  # Number of top-K solutions to return
         self.budget = top_k # Set the budget initially to the top_k value
+        self.use_advantage = use_advantage
 
     def get_beam_widths(self, current_beam: List[TreeNode]) -> int:
-        return np.round(self.budget * scsp.softmax([np.exp(n.score)/self.expansion_temp for n in current_beam])).astype(int) # exponentiate the logprob to get the prob
+        if self.use_advantage:
+            scores = []
+            for n in current_beam:
+                if n.parent is not None:
+                    scores.append(np.exp(n.score) - np.exp(n.parent.score))
+                else:
+                    scores.append(np.exp(n.score))
+            return np.round(self.budget * scsp.softmax(scores)).astype(int)
+        else:
+            return np.round(self.budget * scsp.softmax([np.exp(n.score)/self.expansion_temp for n in current_beam])).astype(int) # exponentiate the logprob to get the prob
 
     async def search(self, generate_children: Callable[[Any], List[TreeNode]], max_depth: int) -> List[TreeNode]:
         """

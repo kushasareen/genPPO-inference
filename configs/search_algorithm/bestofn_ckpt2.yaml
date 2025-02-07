@@ -11,9 +11,15 @@ use_async: true
 download_dir: "/network/scratch/k/kusha.sareen/cache"
 generation_temp: 0.7 # 0.35
 verification_temp: 1.0
-aggregator: "sum" # min or sum or last
+aggregator: "min" # min or sum or last
 max_tokens: 512
 verification_question: "\nIs the solution likely to result in the correct answer (Yes/No)?\n"
 log_all_scores: true
 output_path: "/home/mila/k/kusha.sareen/scratch/genPPO/outputs"
 llm_as_judge: false
+ppo: false
+use_advantage: false
+orm_avg: false
+dataset: "gsm8k" # gsm8k or math
+seed: 0
+num_samples: -1

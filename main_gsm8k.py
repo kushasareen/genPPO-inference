@@ -4,42 +4,49 @@ from reward_model import GenVinePPOVerifier
 from tree import TreeNode
 from verify_gsm8k import evaluate_predictions, estimate_token_count_at_k, estimate_time_at_k
 import time
-from utils import get_search_tree_and_generator, load_dataset, load_model, save_results, get_reward_model
+from utils import get_search_tree_and_generator, load_inference_dataset, load_model, save_results, get_reward_model, load_ppo_model, get_all_models, get_ppo_avg_orm_score, get_question, log_everything, parse_top_nodes
 import asyncio
 import hydra
 import numpy as np
 from omegaconf import OmegaConf
+from eval import run_evals
 
 @hydra.main(version_base = None, config_path="configs", config_name="default")
 def main(cfg):  
     args = cfg.search_algorithm
     print(args)
-    dataset = load_dataset(args)
-    llm, sampling_params, stop_tokens, tokenizer = load_model(args.policy_model, args)
-    if args.reward_model==args.policy_model:
-        reward_llm = llm
-    else:
-        reward_llm, _, _, _ = load_model(args.reward_model, args)
-
-    reward_model = get_reward_model(args, reward_llm, tokenizer)
+    dataset = load_inference_dataset(args)
+    llm, sampling_params, reward_model = get_all_models(args)
     asyncio.run(run_inference(llm, reward_model, sampling_params, dataset, args))
 
 
 async def run_inference(llm, reward_model, sampling_params, dataset, args):
     start = time.time()
+    
+    if args.llm_as_judge:
+        tasks, node_generator = collect_tasks_orm(args, dataset, llm, reward_model, sampling_params)
+    else:
+        tasks, node_generator = collect_tasks_search(args, dataset, llm, reward_model, sampling_params)
 
-    all_gts = []
-    all_preds = []
-    all_top_results = []
+    all_top_nodes = [await task for task in tasks]
+
+    time_taken = time.time() - start
+    total_tokens = node_generator.token_count + reward_model.token_count
+    all_preds, all_different_scores = await parse_top_nodes(args, all_top_nodes, reward_model)
+
+    log_everything(all_preds, all_different_scores, time_taken, all_top_nodes, total_tokens, args)
+    run_evals(all_preds, all_different_scores, time_taken, total_tokens, args)
+
+
+def collect_tasks_search(args, dataset, llm, reward_model, sampling_params):
     tasks = []
-    all_different_scores = []
+    if args.num_samples == -1:
+        num_samples = len(dataset)
+    else:
+        num_samples = args.num_samples
 
-    for i in range(len(dataset)):
-    # for i in range(5):
-        sample = dataset[i]
-        question = sample['question']
-        answer = sample['answer']
-        all_gts.append(answer) 
+    for i in range(num_samples):
+        question = get_question(dataset, i, args)
         prompt = '[MATH_TASK] ' + "Problem:\n" + question + '\n\nSolution:\n' # prompt should match training data format
         root = TreeNode(state = {'text' : prompt, 'logprob' : 0, 'token' : '', 'step_solution' : '', 'full_feedback' : ''}, 
                         score = 0, parent = None, depth = 0, all_scores = {"sum": 0, "min": 0, "last": 0} if args.log_all_scores else {args.aggregator: 0}) # 0 = 1 for logprobs
@@ -48,30 +55,28 @@ async def run_inference(llm, reward_model, sampling_params, dataset, args):
         tasks.append(asyncio.create_task(tree.search(generate_children=node_generator, max_depth=args.max_depth)))
         gc.collect()
 
-    all_top_nodes = [await task for task in tasks]
+    return tasks, node_generator
 
-    for top_nodes in all_top_nodes:
-        predictions = [node.state['text'] for node in top_nodes]
-        all_preds.append(predictions)
-        all_top_results.append(top_nodes[0])
-        different_scores = [{k: np.exp(v) for k, v in node.all_scores.items()} for node in top_nodes]
-        all_different_scores.append(different_scores)
+def collect_tasks_orm(args, dataset, llm, reward_model, sampling_params):
+    tasks = []
 
-    print("\n**** Evaluating ****")
-    results = evaluate_predictions(all_preds, dataset, all_different_scores, args)
+    if args.num_samples == -1:
+        num_samples = len(dataset)
+    else:
+        num_samples = args.num_samples
 
-    print("\n**** Results ****")
+    for i in range(num_samples):
+        question = get_question(dataset, i, args)
+        prompt = '[MATH_TASK] ' + "Problem:\n" + question + '\n\nSolution:\n' # prompt should match training data format
+        root = TreeNode(state = {'text' : prompt, 'logprob' : 0, 'token' : '', 'step_solution' : '', 'full_feedback' : ''}, 
+                        score = 0, parent = None, depth = 0, all_scores = {args.aggregator: 0}) # 0 = 1 for logprobs
+        
+        _, node_generator = get_search_tree_and_generator(root, llm, reward_model, sampling_params, args)
 
-    total_tokens = node_generator.token_count + reward_model.token_count
-    results["total_tokens"] = estimate_token_count_at_k(all_preds, total_tokens, args.top_k)
+        tasks.append(asyncio.create_task(node_generator(root, width=args.top_k)))
+        gc.collect()
 
-    end = time.time()
-    results["time"] = estimate_time_at_k(all_preds, end - start, args.top_k)
-
-    results["config"] = OmegaConf.to_container(args, resolve = True)
-
-    print(results)
-    save_results(results, args)
+    return tasks, node_generator
 
 
 if __name__ == "__main__":

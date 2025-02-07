@@ -17,3 +17,9 @@ verification_question: "\nIs the solution likely to result in the correct answer
 log_all_scores: true
 output_path: "/home/mila/k/kusha.sareen/scratch/genPPO/outputs"
 llm_as_judge: false
+ppo: false
+use_advantage: false
+orm_avg: false
+dataset: "gsm8k" # gsm8k or math
+seed: 0
+num_samples: -1

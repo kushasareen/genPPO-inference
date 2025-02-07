@@ -62,10 +62,11 @@ class GenVinePPOVerifier(torch.nn.Module):
         self.tokenizer = tokenizer
         self.yes_token_id = self.tokenizer.convert_tokens_to_ids('Yes')
         self.no_token_id = self.tokenizer.convert_tokens_to_ids('No')
-        self.sampling_params = SamplingParams(temperature=args.verification_temp, max_tokens=1, logprobs=20)
+        self.sampling_params = SamplingParams(temperature=args.verification_temp, max_tokens=1, logprobs=20, seed = args.seed)
 
         self.verification_question = args.verification_question
         self.token_count = 0
+        self.use_advantage = args.use_advantage
         self.args = args
 
     def get_verification_prompt(self, problem, solution):
@@ -122,7 +123,7 @@ class GenVinePPOVerifier(torch.nn.Module):
 class LLMAsAJudge(GenVinePPOVerifier):
     def __init__(self, args, vllm_model, tokenizer):
         super().__init__(args, vllm_model, tokenizer)
-        self.sampling_params = SamplingParams(temperature=args.verification_temp, max_tokens=512, logprobs=20)
+        self.sampling_params = SamplingParams(temperature=args.verification_temp, max_tokens=512, logprobs=20, seed = args.seed)
 
     def get_verification_prompt(self, problem, solution):
         return f"You are a math teacher. Grade the Solution, verifying correctness step by step. At the end of the Solution verification, when you give your final grade, write it in the form \"Verification: Is the answer correct (Yes/No)? X\", where X is either Yes or No. \n Question: {problem}\nSolution: {solution}\n"
@@ -147,21 +148,15 @@ class LLMAsAJudge(GenVinePPOVerifier):
         return score, token, feedback
 
 class PPOVerifier(torch.nn.Module):
-    def __init__(self, args, tokenizer = None):
+    def __init__(self, args, reward_llm, tokenizer = None):
         super().__init__()
         self.tokenizer = tokenizer
-
-        self.prm_tokenizer = AutoTokenizer.from_pretrained(f"{args.reward_model}", cache_dir=args.download_dir)
-        self.prm_model = AutoModelForCausalLM.from_pretrained(f"{args.reward_model}",
-                                                        torch_dtype=torch.float16, cache_dir=args.download_dir).eval()
+        self.prm_model = reward_llm
         self.prm_model.to(args.device)
         self.device = args.device
         self.token_count = 0
-
-        self.tokenizer = tokenizer
-        self.verification_question = args.verification_question
-        self.token_count = 0
         self.args = args
+        self.mode = args.ppo_prm_mode
 
     async def get_score_from_model(self, question, solution):
         # To better understand the alignment of inputs, logits, logps, and labels,
@@ -214,23 +209,42 @@ class PPOVerifier(torch.nn.Module):
 
         input_for_prm = f"{question} {solution}" # this should be fine
 
-        input_id = torch.tensor([self.prm_tokenizer.encode(input_for_prm)]).to(self.device)
+        input_id = torch.tensor([self.tokenizer.encode(input_for_prm)]).to(self.device)
         with torch.no_grad():
-            logits = self.prm_model(input_id) # TODO: inspect shape
-            # scores = logits.softmax(dim=-1)[:,:,0] 
+            logits = self.prm_model(input_id)
+            # scores = logits.softmax(dim=-1)[:,:,ls
+            # 0] # taking the output logits for the last token
             # log_prob = scores.log()
             # step_log_prob = log_prob[input_id == self.step_tag_id]
             # step_log_prob = step_log_prob.cpu()[-1].item()
-            step_log_prob = logits
+            score = self.get_score_from_logits(logits, solution)
+            step_log_prob = np.log(score.detach().cpu().item()) # we take the log to get logprob equivalent
         return step_log_prob
+    
+    def get_score_from_logits(self, logits, solution):
+        if self.mode == 'last':
+            score = logits[0, -1]
+        elif self.mode == 'mean_all':
+            score = logits.mean()
+        elif self.mode == 'mean_step':
+            num_tokens_in_solution = len(self.tokenizer.encode(solution))
+            score = logits[0, -num_tokens_in_solution:].mean()
+        else:
+            raise NotImplementedError
+        
+        return score
     
     async def forward(self, prompt, solutions):
         tasks = []
 
-        for solution in solutions:
-            tasks.append(asyncio.create_task(self.get_score_from_model(prompt, solution)))
+        # for solution in solutions:
+        #     tasks.append(asyncio.create_task(self.get_score_from_model(prompt, solution)))
 
-        logprobs = [await task for task in tasks]
+        # logprobs = [await task for task in tasks]
+
+        logprobs = []
+        for solution in solutions:
+            logprobs.append(await self.get_score_from_model(prompt, solution))
 
         tokens = ['N/A'] * len(solutions)
         full_feedbacks = ['N/A'] * len(solutions)

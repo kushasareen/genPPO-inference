@@ -20,11 +20,12 @@ class BeamSearchTree(Tree):
     at each depth level based on their cumulative value.
     """
 
-    def __init__(self, root: TreeNode, beam_width: int, beam_size: int, top_k: int = None):
+    def __init__(self, root: TreeNode, beam_width: int, beam_size: int, top_k: int = None, use_advantage: bool = False):
         super().__init__(root)  # Initialize the base Tree with the root
         self.beam_size = beam_size  # Maximum number of nodes to retain per level
         self.beam_width = beam_width
         self.top_k = top_k  # Number of top-K solutions to return
+        self.use_advantage = use_advantage
 
     async def search(self, generate_children: Callable[[Any], List[TreeNode]], max_depth: int) -> List[TreeNode]:
         """
@@ -57,7 +58,10 @@ class BeamSearchTree(Tree):
                     node.add_child(child)  # Add the child to the parent node
 
             if len(next_beam) > self.beam_size:
-                next_beam = heapq.nlargest(self.beam_size, next_beam, key=lambda n: n.score)
+                if self.use_advantage:
+                    next_beam = heapq.nlargest(self.beam_size, next_beam, key=lambda n: np.exp(n.score) - np.exp(n.parent.score) if (n.parent is not None) else np.exp(n.score))
+                else:
+                    next_beam = heapq.nlargest(self.beam_size, next_beam, key=lambda n: n.score)
 
             # If no more nodes are available to explore, stop
             if not next_beam:

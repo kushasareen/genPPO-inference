@@ -1,25 +1,26 @@
-name: "bestofn_vineppo"
-input_path: "/network/scratch/k/kusha.sareen/genPPO/data/gsm8k/test"
-policy_model: "ReasoningMila/vineppo_baseline_ckpt" # ReasoningMila/vineppo_baseline_ckpt
-reward_model: "ReasoningMila/vineppo_baseline_ckpt" # ReasoningMila/vineppo_baseline_ckpt
+name: "bestofn_ppo"
+input_path: "/network/scratch/k/kusha.sareen/genPPO/data/math/test"
+policy_model: "/home/mila/k/kusha.sareen/scratch/genPPO/qwen_genPPO_0.3" # edit ckpt
+reward_model: "/home/mila/k/kusha.sareen/scratch/genPPO/qwen_genPPO_0.3"
 device: "cuda"
-max_depth: 20
-n: 3
-top_k: 3
+max_depth: 10
+n: 50
+top_k: 50
 search_algorithm: "bestofn"
 use_async: true
 download_dir: "/network/scratch/k/kusha.sareen/cache"
-generation_temp: 0 # 0.35 or 0.7
+generation_temp: 0.7 # 0.35
 verification_temp: 1.0
 aggregator: "last" # min or product or id
 max_tokens: 1024
 verification_question: "" # uses llm as judge instead
 log_all_scores: true
 output_path: "/home/mila/k/kusha.sareen/scratch/genPPO/outputs"
-llm_as_judge: true
-ppo: false
+llm_as_judge: false
+ppo: true
 use_advantage: false
-orm_avg: false
+ppo_prm_mode: "mean_step" # last, mean_all, mean_step
+orm_avg: true
 dataset: "gsm8k" # gsm8k or math
 seed: 0
 num_samples: -1

@@ -9,17 +9,24 @@ rcParams.update({'font.size': 14})  # Increase base font size for the entire plo
 
 # Step 1: Define the directory containing the JSON files and the file names
 data_dir = "/home/mila/k/kusha.sareen/scratch/genPPO/outputs"  # Replace with the path where your JSON files are stored
-json_files = ["20241129-232331_rebase", "20241129-230427_bestofn_vineppo", "20241129-081543_bestofn_ckpt2", "20241205-233059_beamsearch_ckpt2", "rebase_k_128"]
-method_names = ["Rebase (GenPPO)", "Sampling (VinePPO)", "Sampling (GenPPO)", "Beam Search (GenPPO)", "Rebase (VinePPO + RM)"]  # Replace with actual method names
-subcategory_names = ["prod", "min", "last"]  # Subcategories for Best-of-N and Weighted Majority Vote
+# json_files = ["20241129-232331_rebase", "20241129-230427_bestofn_vineppo", "20241129-081543_bestofn_ckpt2", "20241205-233059_beamsearch_ckpt2", "rebase_k_128"]
+json_files = ["20250117-030651_bestofn_ppo", "20250116-034315_rebase_ppo"]
+# method_names = ["Rebase (GenPPO)", "Sampling (VinePPO)", "Sampling (GenPPO)", "Beam Search (GenPPO)", "Rebase (VinePPO + RM)"]  # Replace with actual method names
+method_names = ["Samping (PPO)", "Rebase (PPO)"]
+# subcategory_names = ["prod", "min", "last"]  # Subcategories for Best-of-N and Weighted Majority Vote
+subcategory_names = ["prod", "min", "last", "orm_avg"]  # Subcategories for Best-of-N and Weighted Majority Vote
 
 # Step 2: Define consistent colors for methods and subcategories
+# base_colors = {
+#     "Rebase (GenPPO)": "#1f77b4",  # Blue
+#     "Sampling (VinePPO)": "#ff7f0e",  # Orange
+#     "Sampling (GenPPO)": "#2ca02c",  # Green
+#     "Beam Search (GenPPO)": "#d62728",  # Red
+#     "Rebase (VinePPO + RM)": "#9467bd",  # Purple
+# }
 base_colors = {
-    "Rebase (GenPPO)": "#1f77b4",  # Blue
-    "Sampling (VinePPO)": "#ff7f0e",  # Orange
-    "Sampling (GenPPO)": "#2ca02c",  # Green
-    "Beam Search (GenPPO)": "#d62728",  # Red
-    "Rebase (VinePPO + RM)": "#9467bd",  # Purple
+    "Samping (PPO)": "#1f77b4",  # Blue
+    "Rebase (PPO)": "#ff7f0e",  # Orange
 }
 # Define a function to generate subcategory shades
 def get_shades(base_color, num_shades):
@@ -51,9 +58,9 @@ def get_first_n_powers_of_two(n):
     return [2 ** i for i in range(n)]
 
 # small patch
-total_tokens = data['20241129-081543_bestofn_ckpt2']['total_tokens']
-ks = get_first_n_powers_of_two(7)
-data['20241129-081543_bestofn_ckpt2']['total_tokens'] = {k: total_tokens / 200 * k for k in ks}
+# total_tokens = data['20241129-081543_bestofn_ckpt2']['total_tokens']
+# ks = get_first_n_powers_of_two(7)
+# data['20241129-081543_bestofn_ckpt2']['total_tokens'] = {k: total_tokens / 200 * k for k in ks}
 
 def plot_category(data, category, subcategories=False, title=None, xlabel="N", ylabel="Accuracy", yscale="linear", figsize=(10, 6)):
     """
@@ -162,9 +169,12 @@ plot_category(
 plot_category(data, "total_tokens", title="Total Tokens", ylabel="Total Tokens", yscale="log")
 
 has_subcategories_dict = {'best_of_n': True, 'weighted_majority_vote': True, 'majority_vote': False}
-best_subcategory_dict = {'Rebase (GenPPO)': 'min', 'Sampling (VinePPO)': 'sum', 'Sampling (GenPPO)': 'last', 'Beam Search (GenPPO)': 'min', 'Rebase (VinePPO + RM)': 'min'}
-best_category_dict = {'Rebase (GenPPO)': 'weighted_majority_vote', 'Sampling (VinePPO)': 'majority_vote', 'Sampling (GenPPO)': 'weighted_majority_vote', 'Beam Search (GenPPO)': 'best_of_n', 'Rebase (VinePPO + RM)': 'weighted_majority_vote'}
+# best_subcategory_dict = {'Rebase (GenPPO)': 'min', 'Sampling (VinePPO)': 'sum', 'Sampling (GenPPO)': 'last', 'Beam Search (GenPPO)': 'min', 'Rebase (VinePPO + RM)': 'min'}
+# best_category_dict = {'Rebase (GenPPO)': 'weighted_majority_vote', 'Sampling (VinePPO)': 'majority_vote', 'Sampling (GenPPO)': 'weighted_majority_vote', 'Beam Search (GenPPO)': 'best_of_n', 'Rebase (VinePPO + RM)': 'weighted_majority_vote'}
+best_subcategory_dict = {'Samping (PPO)': 'orm_avg', 'Rebase (PPO)': 'orm_avg'}
+best_category_dict = {'Samping (PPO)': 'weighted_majority_vote', 'Rebase (PPO)': 'weighted_majority_vote'}
+
 category_to_name = {'pass_at_k': 'Pass@N', 'best_of_n': 'Best-of-N', 'majority_vote': 'Majority Vote', 'weighted_majority_vote': 'Weighted Majority Vote', 'total_tokens': 'Total Tokens'}
-# check sampling vineppo
+# # check sampling vineppo
 
 plot_best_comparison(data, title="Best Test-Time Compute", ylabel='Accuracy', xlabel='N', yscale='linear')

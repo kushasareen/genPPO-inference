@@ -1,10 +1,11 @@
-name: "rebase"
-input_path: "/network/scratch/k/kusha.sareen/genPPO/data/gsm8k/test"
-policy_model: "ReasoningMila/genppo_init_ckpt" # edit ckpt
-reward_model: "ReasoningMila/genppo_init_ckpt"
+name: "rebase_math"
+input_path: "/network/scratch/k/kusha.sareen/genPPO/data/math/test"
+policy_model: "/home/mila/k/kusha.sareen/scratch/genPPO/qwen_genPPO_0.3" # edit ckpt
+reward_model: "/home/mila/k/kusha.sareen/scratch/genPPO/qwen_genPPO_0.3"
 device: "cuda"
 max_depth: 20
-top_k: 32 # top k is the initial budget for rebase
+top_k: 3 # top k is the initial budget for rebase
+n: 3
 expansion_temp: 0.1 # from rebase paper
 search_algorithm: "rebase"
 use_async: true
@@ -20,6 +21,6 @@ llm_as_judge: false
 ppo: false
 use_advantage: false
 orm_avg: false
-dataset: "gsm8k" # gsm8k or math
+dataset: "math" # gsm8k or math
 seed: 0
 num_samples: -1

@@ -26,6 +26,7 @@ class Generator:
         self.aggregator = args.aggregator
         self.log_all_scores = args.log_all_scores
         self.token_count = 0
+        self.args = args
 
     def get_score(self, parent_score, logprob):
         if self.aggregator == 'sum':
@@ -95,6 +96,7 @@ class AsyncNodeGenerator(Generator):
         all_children = []
         solutions = [candidate.outputs[0].text for candidate in responses]
         logprobs, tokens, full_feedbacks = await self.reward_model(prompt, solutions) 
+
         for (solution, logprob, token, full_feedback) in zip(solutions, logprobs, tokens, full_feedbacks):
             text = prompt + solution + '\n'
             child = TreeNode(state = {'text' : text, 'logprob' : logprob, 'token' : token, 'step_solution' : solution, 
