@@ -88,6 +88,7 @@ def get_llm(model_name, args):
                     pipeline_parallel_size=1,
                     trust_remote_code=True,
                     dtype='float16',
+                    seed = args.seed
                     )
             )
 
@@ -116,7 +117,7 @@ def load_model(model_name, args):
     else:
         raise ValueError(f"Dataset not implemented: {args.dataset}")
     
-    sampling_params = SamplingParams(temperature=args.generation_temp, max_tokens=args.max_tokens, stop=stop_words, seed = args.seed)
+    sampling_params = SamplingParams(temperature=args.generation_temp, max_tokens=args.max_tokens, stop=stop_words)
     return llm, sampling_params, tokenizer
 
 

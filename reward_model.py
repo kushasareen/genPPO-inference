@@ -62,7 +62,7 @@ class GenVinePPOVerifier(torch.nn.Module):
         self.tokenizer = tokenizer
         self.yes_token_id = self.tokenizer.convert_tokens_to_ids('Yes')
         self.no_token_id = self.tokenizer.convert_tokens_to_ids('No')
-        self.sampling_params = SamplingParams(temperature=args.verification_temp, max_tokens=1, logprobs=20, seed = args.seed)
+        self.sampling_params = SamplingParams(temperature=args.verification_temp, max_tokens=1, logprobs=20)
 
         self.verification_question = args.verification_question
         self.token_count = 0
@@ -123,7 +123,7 @@ class GenVinePPOVerifier(torch.nn.Module):
 class LLMAsAJudge(GenVinePPOVerifier):
     def __init__(self, args, vllm_model, tokenizer):
         super().__init__(args, vllm_model, tokenizer)
-        self.sampling_params = SamplingParams(temperature=args.verification_temp, max_tokens=512, logprobs=20, seed = args.seed)
+        self.sampling_params = SamplingParams(temperature=args.verification_temp, max_tokens=512, logprobs=20)
 
     def get_verification_prompt(self, problem, solution):
         return f"You are a math teacher. Grade the Solution, verifying correctness step by step. At the end of the Solution verification, when you give your final grade, write it in the form \"Verification: Is the answer correct (Yes/No)? X\", where X is either Yes or No. \n Question: {problem}\nSolution: {solution}\n"
