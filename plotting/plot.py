@@ -41,7 +41,7 @@ def get_base_colors(method_names):
 
     return {method: colors[i] for i, method in enumerate(method_names)}
 
-def plot_method(method_data, model, file, fig_maj, fig_bon, fig_wmaj, fig_pan, fig_tok, color_dict, suffix_to_plot):
+def plot_method(method_data, model, file, fig_maj, fig_bon, fig_wmaj, fig_pan, fig_tok, color_dict, suffix_to_plot, only_best_suffix=False):
     # Extract the metric names
     search_method = file.split(".")[0].split("_")[0]
     method_data["suffix"] = method_data["metric"].apply(lambda x: x.split("_")[-1] if "_" in x else "")
@@ -106,9 +106,19 @@ def plot_method(method_data, model, file, fig_maj, fig_bon, fig_wmaj, fig_pan, f
                     ax.set_yscale("log", base=2)
                 ax.grid(True)
             else:
+                if only_best_suffix:
+                    best_suffix = None
+                    best_row_idx = sub_data.idxmax()["value"]
+                    best_row = sub_data.loc[best_row_idx]
+                    best_suffix = best_row["suffix"]
+
                 for suffix, linestyle in linestyle_map.items():
                     if suffix not in suffix_to_plot:
                         continue
+
+                    if only_best_suffix and suffix != best_suffix:
+                        continue
+
                     sub_sub_data = sub_data[sub_data["metric"].str.endswith(suffix)]
                     # sort by true_k
                     sub_sub_data = sub_sub_data.sort_values("true_k")
@@ -134,7 +144,7 @@ def plot_method(method_data, model, file, fig_maj, fig_bon, fig_wmaj, fig_pan, f
 def flatten_list(l):
     return [item for sublist in l for item in sublist]
     
-def plot_all(data, model_names, save_path="plots", suffix_to_plot=["sum", "min", "last"]):
+def plot_all(data, model_names, save_path="plots", suffix_to_plot=["sum", "min", "last"], best_suffix=False):
     model_and_search_names  = [[f"{model}_rebase", f"{model}_rebase_adv", f"{model}_bestofn"] for model in model_names]
     model_and_search_names = flatten_list(model_and_search_names)
 
@@ -146,7 +156,7 @@ def plot_all(data, model_names, save_path="plots", suffix_to_plot=["sum", "min",
     f_tok = plt.figure(figsize=(12, 6), dpi=300)
 
     for (model, file), model_data in data.items():
-        fig_maj, fig_bon, fig_wmaj, fig_pan, fig_tok = plot_method(model_data, model, file, f_maj, f_bon, f_wmaj, f_pan, f_tok, color_dict, suffix_to_plot=suffix_to_plot)
+        fig_maj, fig_bon, fig_wmaj, fig_pan, fig_tok = plot_method(model_data, model, file, f_maj, f_bon, f_wmaj, f_pan, f_tok, color_dict, suffix_to_plot=suffix_to_plot, only_best_suffix=best_suffix)
 
     if not os.path.exists(save_path):
         os.makedirs(save_path)
@@ -209,8 +219,8 @@ def plot_best_comparison(data, model_names, save_path, color_dict):
 
 
 if __name__ == "__main__":
-    # model_names = ["qwen_genPPO_0.1" , "qwen_genPPO_0.3", "qwen_genPPO_0.5"]
-    model_names = ["qwen_genPPO_0.1"]
+    model_names = ["qwen_genPPO_0.1" , "qwen_genPPO_0.3", "qwen_genPPO_0.5"]
+    # model_names = ["qwen_genPPO_0.1"]
     data = load_csvs(model_names)
-    # plot_all(data, model_names, save_path="plots/overall", suffix_to_plot=["last"])
-    plot_all(data, model_names, save_path="plots/qwen_genPPO_0.1", suffix_to_plot=["sum", "min", "last"])
+    plot_all(data, model_names, save_path="plots/overall", suffix_to_plot=["sum", "min", "last"], best_suffix = True)
+    # plot_all(data, model_names, save_path="plots/qwen_genPPO_0.1", suffix_to_plot=["sum", "min", "last"])
