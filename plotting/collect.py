@@ -22,15 +22,15 @@ def parse_data(data):
     
     for key, content in data.items():
         split = key.split('_')
-        method = split[1]
+        method = content['config']['search_algorithm']
         
-        
-        k = int(''.join(filter(str.isdigit, split[3])))
-        seed = int(''.join(filter(str.isdigit, split[4])))
+        k = content['config']['top_k']
+        seed = content['config']['seed']
         adv = content['config']['use_advantage']
 
         if method != "rebase":
             bestofn_to_df(content, method, k, adv)
+            continue
         
         for metric, values in content.items():
             if metric == "config" or metric == "base_results":
@@ -64,7 +64,7 @@ def parse_data(data):
                     if max_int_key == 1 and metric != "total_tokens":
                         max_key_value = content["base_results"]["top 1"]
                         
-                    metric_name = f'{metric}_{sub_metric}'
+                    metric_name = f'{metric}-{sub_metric}'
                     key_tuple = (metric_name, k, adv)
                     if key_tuple not in metrics:
                         metrics[key_tuple] = []
@@ -111,7 +111,7 @@ def bestofn_to_df(content, method, k, adv):
                 })
         else:  # Metrics with nested sub-metrics
             for sub_metric, sub_values in values.items():
-                metric_name = f'{metric}_{sub_metric}'
+                metric_name = f'{metric}-{sub_metric}'
                 for key, value in sub_values.items():
                     k_int = int(key.split('@')[-1])
                     rows.append({

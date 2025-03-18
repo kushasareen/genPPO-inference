@@ -496,7 +496,7 @@ def extract_theoremqa_answer(pred: str, answer_flag: bool = True):
     return pred
 
 #关键提取函数
-def extract_answer(pred_str, data_name, use_last_number=True):
+def extract_answer(pred_str, data_name = "math", use_last_number=True):
     pred_str = pred_str.replace("\u043a\u0438", "")
     if data_name in ["mmlu_stem", "sat_math", "aqua", "gaokao2023"]: #skip for math benchmark
         # TODO check multiple choice

@@ -62,7 +62,7 @@ class GenVinePPOVerifier(torch.nn.Module):
         self.tokenizer = tokenizer
         self.yes_token_id = self.tokenizer.convert_tokens_to_ids('Yes')
         self.no_token_id = self.tokenizer.convert_tokens_to_ids('No')
-        self.sampling_params = SamplingParams(temperature=args.verification_temp, max_tokens=1, logprobs=20)
+        self.sampling_params = SamplingParams(temperature=args.verification_temp, max_tokens=1, logprobs=10)
 
         self.verification_question = args.verification_question
         self.token_count = 0
@@ -80,7 +80,7 @@ class GenVinePPOVerifier(torch.nn.Module):
             return score, token, feedback
 
         first_output = response.outputs[0].logprobs[0]
-        if self.yes_token_id in first_output: # if yes token is in the top 20 logprobs (it should always be), score is the logprob of yes token
+        if self.yes_token_id in first_output: # if yes token is in the top 10 logprobs (it should always be), score is the logprob of yes token
             score = first_output[self.yes_token_id].logprob
 
         else: # otherwise, we set the score to -100
@@ -90,7 +90,34 @@ class GenVinePPOVerifier(torch.nn.Module):
         feedback = response.outputs[0].text
 
         return score, token, feedback
+    
+    def get_score_with_no(self, response):
+        if len(response.outputs) == 0 or len(response.outputs[0].logprobs) == 0:
+            score = -100.0
+            token = 'N/A'
+            feedback = 'N/A'
+            return score, token, feedback
 
+        first_output = response.outputs[0].logprobs[0]
+        if self.yes_token_id in first_output: # if yes token is in the top 20 logprobs (it should always be), score is the logprob of yes token
+            yes_logprob = first_output[self.yes_token_id].logprob
+        else:
+            yes_logprob = -100.0
+
+        if self.no_token_id in first_output:
+            no_logprob = first_output[self.no_token_id].logprob
+        else:
+            no_logprob = -100.0            
+        
+        if yes_logprob > no_logprob:
+            score = yes_logprob
+        else:
+            score = np.log( 1- np.exp(no_logprob))
+
+        token = response.outputs[0].text
+        feedback = response.outputs[0].text
+
+        return score, token, feedback
 
     async def forward(self, prompt, solutions): 
         verification_prompts = []
@@ -207,7 +234,7 @@ class PPOVerifier(torch.nn.Module):
         #
         # >>> logits_seq_len = logps_seq_len = valid_values_len = seq_len - 1 = 6
 
-        input_for_prm = f"{question} {solution}" # this should be fine
+        input_for_prm = f"{question}{solution}" # this should be fine
 
         input_id = torch.tensor([self.tokenizer.encode(input_for_prm)]).to(self.device)
         with torch.no_grad():

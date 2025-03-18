@@ -5,16 +5,7 @@ import numpy as np
 import random
 import asyncio
 import scipy.special as scsp
-
-def is_terminal(node):
-    if 'The answer is' in node.state['text']:
-        return True
-    if 'The final answer is' in node.state['text']:
-        return True
-    if '####' in node.state['text']:
-        return True
-    return False
-
+from search_algorithms.is_terminal import is_terminal
 
 class RebaseTree(Tree):
     """
@@ -22,21 +13,22 @@ class RebaseTree(Tree):
     at each depth level based on their cumulative value.
     """
 
-    def __init__(self, root: TreeNode, expansion_temp: float, top_k: int = None, use_advantage: bool = False):
+    def __init__(self, root: TreeNode, expansion_temp: float, top_k: int = None, use_advantage: bool = False, eos_token: Optional[int] = None):
         super().__init__(root)  # Initializwidthse the base Tree with the root
         self.expansion_temp = expansion_temp  # Maximum number of nodes to retain per level
         self.top_k = top_k  # Number of top-K solutions to return
         self.budget = top_k # Set the budget initially to the top_k value
         self.use_advantage = use_advantage
+        self.eos_token = eos_token
 
     def get_beam_widths(self, current_beam: List[TreeNode]) -> int:
         if self.use_advantage:
             scores = []
             for n in current_beam:
                 if n.parent is not None:
-                    scores.append(np.exp(n.score) - np.exp(n.parent.score))
+                    scores.append((np.exp(n.score) - np.exp(n.parent.score)) / self.expansion_temp)
                 else:
-                    scores.append(np.exp(n.score))
+                    scores.append(np.exp(n.score) / self.expansion_temp)
             return np.round(self.budget * scsp.softmax(scores)).astype(int)
         else:
             return np.round(self.budget * scsp.softmax([np.exp(n.score)/self.expansion_temp for n in current_beam])).astype(int) # exponentiate the logprob to get the prob
@@ -61,12 +53,13 @@ class RebaseTree(Tree):
             # List to store all children generated in this depth level
             next_beam = []
             widths = self.get_beam_widths(current_beam)
+            # print("Widths: ", widths)
 
             # Expand each node in the current beam
             for idx, node in enumerate(current_beam):
                 children = await generate_children(node, widths[idx])
                 for child in children:
-                    if is_terminal(child):
+                    if is_terminal(child, self.eos_token):
                         terminal_nodes.append(child)
                         self.budget -= 1
                     else:
@@ -81,7 +74,7 @@ class RebaseTree(Tree):
             current_beam = next_beam
 
         # Return the top-K nodes from the final beam
-        if len(terminal_nodes) == 0:
-            return heapq.nlargest(self.top_k, terminal_nodes + current_beam, key=lambda n: n.score)
+        if len(terminal_nodes) < self.top_k:
+            return heapq.nlargest(self.top_k, current_beam + terminal_nodes, key=lambda n: n.score)
  
-        return heapq.nlargest(self.top_k, terminal_nodes + current_beam, key=lambda n: n.score)
+        return heapq.nlargest(self.top_k, terminal_nodes, key=lambda n: n.score)

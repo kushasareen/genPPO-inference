@@ -3,15 +3,7 @@ from typing import List, Callable, Any, Optional
 from tree import Tree, TreeNode
 import numpy as np
 import random
-
-def is_terminal(node):
-    if 'The answer is' in node.state['text']:
-        return True
-    if 'The final answer is' in node.state['text']:
-        return True
-    if '####' in node.state['text']:
-        return True
-    return False
+from search_algorithms.is_terminal import is_terminal
 
 class BestOfNTree(Tree):
     """
@@ -19,11 +11,12 @@ class BestOfNTree(Tree):
     at each depth level based on their cumulative value.
     """
 
-    def __init__(self, root: TreeNode, n: int, top_k: int = None):
+    def __init__(self, root: TreeNode, n: int, top_k: int = None, eos_token: Optional[int] = None):
         super().__init__(root)  # Initialize the base Tree with the root
         self.n = n  # Maximum number of nodes to retain per level
         self.top_k = top_k  # Number of top-K solutions to return
         if top_k is None: self.top_k = 1
+        self.eos_token = eos_token
 
     async def search(self, generate_children: Callable[[Any], List[TreeNode]], max_depth: int) -> List[TreeNode]: # TODO: Change to async
         """
@@ -38,7 +31,7 @@ class BestOfNTree(Tree):
         """
         # Start the beam with the root node
         terminal_nodes = []
-        current_beam = [self.root] * self.n
+        current_beam = [self.root] * self.top_k
 
         for depth in range(max_depth): 
             # print("Depth: ", depth)
@@ -51,7 +44,7 @@ class BestOfNTree(Tree):
                 #assert len(children) == 1  # generate children should only ever return 1 child
                 child = children[0]
 
-                if is_terminal(child):
+                if is_terminal(child, self.eos_token):
                     terminal_nodes.append(child)
                 else:
                     next_beam.append(child)  # Add to the list of candidates for the next beam
@@ -66,7 +59,7 @@ class BestOfNTree(Tree):
             current_beam = next_beam
 
         # Return the top-K nodes from the final beam
-        if len(terminal_nodes) == 0:
-            return heapq.nlargest(self.top_k, current_beam, key=lambda n: n.score)
+        if len(terminal_nodes) < self.top_k:
+            return heapq.nlargest(self.top_k, current_beam + terminal_nodes, key=lambda n: n.score)
  
-        return heapq.nlargest(self.top_k, current_beam + terminal_nodes, key=lambda n: n.score)
+        return heapq.nlargest(self.top_k, terminal_nodes, key=lambda n: n.score)

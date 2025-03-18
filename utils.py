@@ -19,30 +19,36 @@ import numpy as np
 import pickle
 
 def load_inference_dataset(args):
-    if 'MATH_250_test'.lower() in args.input_path.lower():
+    if args.dataset == "math250":
         dataset = load_dataset("nishadsinghi/MATH_250_test")['test']
+    elif args.dataset == "math128":
+        dataset = load_dataset("nishadsinghi/MATH128")['test']
+    elif args.dataset == "aime":
+        dataset = load_dataset("ScaleFrontierData/aime24")['train']
+        # breakpoint()
     else:
         dataset = Dataset.load_from_disk(args.input_path)
     return dataset
 
-def get_search_tree_and_generator(root , llm, reward_model, sampling_params, args):
+def get_search_tree_and_generator(root , llm, reward_model, sampling_params, tokenizer, args):
     """
     Get the search tree and node generator based on the search algorithm.
     """
-
-    if args.use_async:
+    eos_token = tokenizer.eos_token
+    # if args.use_async:
+    if True:
         generator_type = AsyncNodeGenerator
     else:
         generator_type = NodeGenerator
 
     if args.search_algorithm == "beamsearch":
-        tree = BeamSearchTree(root=root, beam_size=args.beam_size, beam_width=args.beam_width, top_k=args.top_k, use_advantage=args.use_advantage)
+        tree = BeamSearchTree(root=root, beam_size=args.top_k, beam_width=args.beam_width, top_k=args.top_k, use_advantage=args.use_advantage, eos_token=eos_token)
         generator = generator_type(llm, reward_model, num_children=args.beam_width, sampling_params=sampling_params, args=args)
     elif args.search_algorithm == "bestofn":
-        tree =  BestOfNTree(root=root, n=args.n, top_k = args.top_k)
+        tree =  BestOfNTree(root=root, n=args.top_k, top_k = args.top_k, eos_token=eos_token)
         generator = generator_type(llm, reward_model, num_children=1, sampling_params=sampling_params, args=args)
     elif args.search_algorithm == "rebase":
-        tree = RebaseTree(root=root, expansion_temp=args.expansion_temp, top_k=args.top_k, use_advantage=args.use_advantage)
+        tree = RebaseTree(root=root, expansion_temp=args.expansion_temp, top_k=args.top_k, use_advantage=args.use_advantage, eos_token=eos_token)
         generator = generator_type(llm, reward_model, num_children=None, sampling_params=sampling_params, args=args)
     else:
         raise ValueError(f"Search algorithm not implemented: {args.search_algorithm}")
@@ -55,7 +61,8 @@ def get_llm(model_name, args):
     dtype = 'bfloat16' if "qwen" in args.policy_model.lower() else 'float16'
     print("Dtype:", dtype)
     print("GPU Usage and Max Model Len:", gpu_memory_utilization, max_model_len)
-    if args.use_async: 
+    # if args.use_async:
+    if True: 
         if args.dataset == "gsm8k":
             # llm = AsyncLLMEngine.from_engine_args(
             # AsyncEngineArgs(
@@ -78,9 +85,10 @@ def get_llm(model_name, args):
                     pipeline_parallel_size=1,
                     trust_remote_code=True,
                     dtype='float16',
+                    seed = args.seed,
                     )
             )
-        elif args.dataset == "math":
+        else:
             llm = AsyncLLMEngine.from_engine_args(
                 AsyncEngineArgs(
                     model=model_name,
@@ -88,7 +96,8 @@ def get_llm(model_name, args):
                     pipeline_parallel_size=1,
                     trust_remote_code=True,
                     dtype='float16',
-                    seed = args.seed
+                    seed = args.seed,
+                    # gpu_memory_utilization=0.4,
                     )
             )
 
@@ -98,7 +107,8 @@ def get_llm(model_name, args):
                 max_model_len=2048,
                 tensor_parallel_size=1, 
                 download_dir = args.download_dir, 
-                gpu_memory_utilization=gpu_memory_utilization, 
+                gpu_memory_utilization=gpu_memory_utilization,
+                seed = args.seed,
                 enforce_eager=True) # False?
         
     
@@ -110,7 +120,7 @@ def load_model(model_name, args):
     stop_words = [tokenizer.eos_token if tokenizer is not None and tokenizer.eos_token is not None else '</s>']
     if args.llm_as_judge:
         pass
-    elif args.dataset == "math":
+    elif args.dataset == "math" or args.dataset == "math250" or args.dataset == "math128" or args.dataset == "aime":
         stop_words.append("\n\n") # double check with arian
     elif args.dataset == "gsm8k":
         stop_words.append("\n")
@@ -147,9 +157,12 @@ def generate_filename(config: DictConfig, separator: str = "_", extension: str =
     return filename
 
 def save_results(results, args):
-    filename = time.strftime("%Y%m%d-%H%M%S") + "_" + args.name + '_k' + str(args.top_k)+ '_s' + str(args.seed)
-
+    # filename = time.strftime("%Y%m%d-%H%M%S") + "_" + args.name + '_k' + str(args.top_k)+ '_s' + str(args.seed)
+    filename = f"{args.id}_{args.name}_k{args.top_k}_{args.dataset}"
     path = args.output_path + "/" + filename
+    if not os.path.exists(args.output_path):
+        os.makedirs(args.output_path)
+        
     with open(path, 'w+') as f:
         json.dump(results, f, indent=4)
 
@@ -185,16 +198,19 @@ def get_all_models(args):
         reward_model = get_reward_model(args, reward_llm, tokenizer)
 
     else:
-        llm, reward_llm, tokenizer = load_ppo_model(args.policy_model, args.download_dir)
+        llm, reward_llm, tokenizer = load_ppo_model(args.policy_model, args.download_dir, args)
         stop_words = [tokenizer.eos_token if tokenizer is not None and tokenizer.eos_token is not None else '</s>']
-        stop_words.append("\n")
+        if "math" in args.dataset or args.dataset == "aime":
+            stop_words.append("\n\n")
+        else:
+            stop_words.append("\n")
         sampling_params = SamplingParams(temperature=args.generation_temp, max_tokens=args.max_tokens, stop=stop_words)
         reward_model = get_reward_model(args, reward_llm, tokenizer)
         
-    return llm, sampling_params, reward_model
+    return llm, sampling_params, reward_model, tokenizer
 
 
-def load_ppo_model(path, download_dir):
+def load_ppo_model(path, download_dir, args):
     import sys
     sys.path.append(r"/home/mila/k/kusha.sareen/genPPO/genPPO/src") # a little hacky
 
@@ -209,20 +225,31 @@ def load_ppo_model(path, download_dir):
     # print(os.path.isdir(model_dir))
     # breakpoint()
     assert os.path.isdir(path), f"Model path {path} does not exist"
+    # generator = AsyncLLMEngine.from_engine_args(
+    # AsyncEngineArgs(
+    #     model=f"{path}/hf_pretrained",
+    #     dtype='float16',
+    #     enforce_eager=True,
+    #     download_dir= download_dir,
+    #     gpu_memory_utilization=gpu_memory_utilization,
+    #     swap_space=3,
+    #     max_model_len=max_model_len,
+    #     kv_cache_dtype="fp8_e5m2",
+    #     tensor_parallel_size=1, # needs to be more than 1 for tensor parallelism
+    #     disable_log_requests=True
+    #     )
+    # )
+
     generator = AsyncLLMEngine.from_engine_args(
-    AsyncEngineArgs(
+        AsyncEngineArgs(
         model=f"{path}/hf_pretrained",
+        tensor_parallel_size=1,
+        pipeline_parallel_size=1,
+        trust_remote_code=True,
+        gpu_memory_utilization=0.4,
         dtype='float16',
-        enforce_eager=True,
-        download_dir= download_dir,
-        gpu_memory_utilization=gpu_memory_utilization,
-        swap_space=3,
-        max_model_len=max_model_len,
-        kv_cache_dtype="fp8_e5m2",
-        tensor_parallel_size=1, # needs to be more than 1 for tensor parallelism
-        disable_log_requests=True
-        )
-    )
+        seed = args.seed,
+    ))
     pretrained_backbone_model = AutoModelForCausalLM.from_pretrained(f"{path}/hf_pretrained", cache_dir="/network/scratch/k/kusha.sareen/cache")
     critic = PreTrainedModelForValueNetwork(pretrained_backbone_model)
     state_dict = torch.load(f"{path}/critic/hf_pretrained/pytorch_model.bin")
@@ -252,10 +279,10 @@ async def get_ppo_avg_orm_score(top_nodes, reward_model, different_scores):
 
 def get_question(dataset, i, args):
     sample = dataset[i]
-
-    if args.dataset == "gsm8k":
+    # breakpoint()
+    if args.dataset in ["gsm8k", "aime"]:
         question = sample["question"]
-    elif args.dataset == "math":
+    elif args.dataset in ["math", "math250", "math128"]:
         question = sample["problem"]
     else:
         raise ValueError(f"Dataset not implemented: {args.dataset}")
@@ -263,8 +290,11 @@ def get_question(dataset, i, args):
     return question
     
 def log_everything(all_preds, all_different_scores, time_taken, total_tokens, all_top_nodes, args):
-    folder_name = time.strftime("%Y%m%d-%H%M%S") + "_" + args.name
+    # current_time = time.strftime("%Y%m%d-%H%M%S")
+    # model_name = args.policy_model.split("/")[-1]
+    folder_name = f"{args.id}_{args.name}_k{args.top_k}_{args.dataset}"
     path = f"/home/mila/k/kusha.sareen/scratch/genPPO/evals/{folder_name}"
+    # path = f"/home/mila/k/kusha.sareen/scratch/genPPO/evals/{args.folder_name}"
     os.makedirs(path, exist_ok=True)
     with open(f"{path}/all_preds.pkl", 'wb') as f:
         pickle.dump(all_preds, f)
@@ -323,27 +353,73 @@ async def parse_top_nodes(args, all_top_nodes, reward_model):
 
     return all_preds, all_different_scores
 
-if __name__ == "__main__":
-    # from transformers import AutoModel
-    # load_ppo_model("ReasoningMila/ppo_gsm_7b_ckpt_iter_0015_epoch_2.00_step_0240", "~/scratch/k/kusha.sareen/cache", connector_path='snapshots/f2e98aed5a4eb22b964453d2f920cf29af1b61be/hf_pretrained')
-    # download_ppo_model("ReasoningMila/ppo_gsm_7b_ckpt_iter_0015_epoch_2.00_step_0240", "/network/scratch/k/kusha.sareen/cache")
-    # /home/mila/k/kusha.sareen/scratch/cache/models--ReasoningMila--ppo_gsm_7b_ckpt_iter_0015_epoch_2.00_step_0240/snapshots/f2e98aed5a4eb22b964453d2f920cf29af1b61be/hf_pretrained
-    # path = "/home/mila/k/kusha.sareen/scratch/cache/models--ReasoningMila--ppo_gsm_7b_ckpt_iter_0015_epoch_2.00_step_0240/snapshots/f2e98aed5a4eb22b964453d2f920cf29af1b61be"
-    # print(os.path.isdir(path))
-    # model = AutoModelForCausalLM.from_pretrained(path, cache_dir="/network/scratch/k/kusha.sareen/cache")
+def log_solution(i, top_nodes, num_samples, current_tokens, args):
+    path = f"/home/mila/k/kusha.sareen/scratch/genPPO/evals/{args.folder_name}"
 
-    generator = AsyncLLMEngine.from_engine_args(
-        AsyncEngineArgs(
-            model="/home/mila/k/kusha.sareen/scratch/genPPO/ppo_gsm_7b_ckpt_iter_0015_epoch_2.00_step_0240",
-            dtype='float16',
-            enforce_eager=True,
-            gpu_memory_utilization=0.4,
-            swap_space=3,
-            max_model_len=2048,
-            kv_cache_dtype="fp8_e5m2",
-            tensor_parallel_size=1, # needs to be more than 1 for tensor parallelism
-            disable_log_requests=True
-            )
-        )
+    with open(f"{path}/question_{i}.pkl", 'wb') as f:
+        pickle.dump(top_nodes, f)
+
+    print(f"Question {i} logged to: {path}")
+
+    # Update status file
+    with open(f"{path}/status.txt", 'w+') as f:
+        f.write(str(i))
+
+    with open(f"{path}/tokens_so_far.txt", 'r') as f:
+        f.write(str(current_tokens))
+
+    # if done, log that
+    if i == num_samples - 1:
+        with open(f"{path}/done.txt", 'w+') as f:
+            f.write("done")
+
+def parse_by_question_logs(args):
+    path = f"/home/mila/k/kusha.sareen/scratch/genPPO/evals/{args.folder_name}"
+    all_top_nodes = []
+    num_samples = get_num_samples(args, load_inference_dataset(args))
+    for i in range(num_samples):
+        try:
+            with open(f"{path}/question_{i}.pkl", 'rb') as f:
+                top_nodes = pickle.load(f)
+                all_top_nodes.append(top_nodes)
+        except FileNotFoundError:
+            break
+
+    with open(f"{path}/tokens_so_far.txt", 'r') as f:
+        current_tokens = int(f.read())
+
+    return all_top_nodes, current_tokens
+
+def get_num_samples(args, dataset):
+    if args.num_samples == -1:
+        num_samples = len(dataset)
+    else:
+        num_samples = args.num_samples
+    return num_samples
+
+def get_prompt(question, args):
+    prompt = '[MATH_TASK] ' + "Problem:\n" + question + '\n\nSolution:\n' # prompt should match training data format
+    return prompt
+
+def get_task(tree, root, node_generator, args):
+    if args.llm_as_judge:
+        return node_generator(root, width=args.top_k)
+    else:
+        return tree.search(generate_children=node_generator, max_depth=args.max_depth)
     
-    print(generator)
+def log_args(args):
+    folder_name = args.folder_name
+    path = f"/home/mila/k/kusha.sareen/scratch/genPPO/evals/{folder_name}"
+    os.makedirs(path, exist_ok=True)
+
+    with open(f"{path}/args.pkl", 'wb') as f:
+        pickle.dump(args, f)
+
+def load_paraquet_dataset(path):
+    from datasets import load_dataset
+    dataset = load_dataset('lhoestq/demo1')
+
+
+if __name__ == "__main__":
+    all_preds, all_different_scores, time_taken, total_tokens, all_top_nodes, args = get_everything_from_logs("20250221-214923_bestofn_qwen_ppo")
+    breakpoint()

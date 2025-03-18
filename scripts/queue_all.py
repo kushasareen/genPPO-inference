@@ -3,15 +3,16 @@ import argparse
 
 # Parse arguments
 parser = argparse.ArgumentParser()
-parser.add_argument('--model', type=str, default='qwen_genPPO_0.1')
+parser.add_argument('--model', type=str, default='qwen_ORM_1')
+parser.add_argument('--queue', action='store_true', default=False)
 args = parser.parse_args()
 model = args.model
 num_jobs = 0
 
 model_path = f'/home/mila/k/kusha.sareen/scratch/genPPO/{model}'
-dataset = 'math'
+dataset = 'math128'
 dataset_path = "/network/scratch/k/kusha.sareen/genPPO/data/math/test"
-num_samples = 250
+num_samples = -1
 
 # Make output dir
 output_dir = f'/home/mila/k/kusha.sareen/scratch/genPPO/outputs/{model}'
@@ -26,8 +27,8 @@ k = 2 # 2?
 # QUEUE Sampling
 search_alg = 'bestofn_math'
 command = f'bash scripts/run.sh -m {model_path} -d {dataset} -p {dataset_path} -k {K_max} -s {search_alg} -o {output_dir} -n {num_samples} -e 0'
-# print(command)
-os.system(command)
+print(command)
+if args.queue: os.system(command)
 num_jobs += 1
 
 # QUEUE Search
@@ -40,9 +41,13 @@ while k <= K_max:
             search_alg = 'rebase_math'
             if adv:
                 search_alg = 'rebase_math_adv'
-            command = f'bash scripts/run.sh -m {model_path} -d {dataset} -p {dataset_path} -k {k} -s {search_alg} -o {output_dir} -n {num_samples} -e {seed}'
-            # print(command)
-            os.system(command)
+            if k == K_max:
+                # command = f'bash scripts/run_main.sh -m {model_path} -d {dataset} -p {dataset_path} -k {k} -s {search_alg} -o {output_dir} -n {num_samples} -e {seed}'
+                command = f'bash scripts/run.sh -m {model_path} -d {dataset} -p {dataset_path} -k {k} -s {search_alg} -o {output_dir} -n {num_samples} -e {seed}'
+            else:
+                command = f'bash scripts/run.sh -m {model_path} -d {dataset} -p {dataset_path} -k {k} -s {search_alg} -o {output_dir} -n {num_samples} -e {seed}'
+            print(command)
+            if args.queue: os.system(command)
             num_jobs += 1
     # QUEUE 
     k *= 2

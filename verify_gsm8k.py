@@ -9,6 +9,7 @@ import scipy.special as scsp
 from verify_math import grade_answer_math, extract_answer_math
 from math_grader import math_equal
 from parser_math import extract_answer as extract_answer_math_parser
+import random
 
 FIND_NUMBERS_REGEX = re.compile(
     r"(?:[+-]?\d+\.\d*|[+-]?\.\d+|[+-]?\d+e[-+]?\d+|[+-]?\d+)"
@@ -74,6 +75,8 @@ def estimate_verifier_at_n(grading_results: List[bool], probs: List[float], n, n
     # sort correctness by verifier scores
     grading_results = np.array(grading_results)
     probs = np.array(probs)
+    no_answer_mask = np.array([is_invalid_answer(sol) for sol in grading_results])
+    probs[no_answer_mask] = 0
     answers_with_verifier_scores = np.array(list(zip(grading_results, probs)))
     verifier_at_n_res = []
     correctness_scores = np.array([
@@ -81,8 +84,8 @@ def estimate_verifier_at_n(grading_results: List[bool], probs: List[float], n, n
             for _, x in sorted(zip([x[1] for x in answers_with_verifier_scores], grading_results), reverse=True)
         ])
     for _ in range(num_subsets):
-        subset_indices = np.random.choice(len(grading_results), size=n, replace=False)
-        correctness_scores_subset = correctness_scores[subset_indices]
+        # subset_indices = np.random.choice(len(grading_results), size=n, replace=False)
+        # correctness_scores_subset = correctness_scores[subset_indices]
         if n <= len(grading_results):
             verifier_at_n_res.append(verifier_at_k(correctness_scores, n))
 
@@ -99,6 +102,13 @@ def verifier_at_k(scores, k):
     return sum(fracs)
 
 def weighted_majority_vote(answers: List[str], probs: List[float], grading_results, k, num_subsets) -> str:
+    # no_answer_mask = np.array([is_invalid_answer(sol) for sol in answers])
+    # answers = np.array(answers)
+    # grading_results = np.array(grading_results)
+    # answers = answers[~no_answer_mask]
+    # grading_results = grading_results[~no_answer_mask]
+    # answers = list(answers)
+
     if k > len(grading_results):
         print("Warning: k is larger than the number of answers. Setting k to the number of answers.")
         print("k vs number of answers:", k, len(grading_results))
@@ -110,7 +120,13 @@ def weighted_majority_vote(answers: List[str], probs: List[float], grading_resul
     for _ in range(num_subsets):
         subset_indices = np.random.choice(len(grading_results), size=k, replace=False)
         answers_subset = answers_np[subset_indices]
+        no_answer_mask = np.array([is_invalid_answer(sol) for sol in answers_subset])
+        answers_subset = answers_subset[~no_answer_mask]
+        if len(answers_subset) == 0:
+            continue
+
         probs_subset = probs[subset_indices]
+        probs_subset = probs_subset[~no_answer_mask]
         answer_dict = {}
         for ans, p in zip(answers_subset, probs_subset):
             if ans in answer_dict:
@@ -125,7 +141,55 @@ def weighted_majority_vote(answers: List[str], probs: List[float], grading_resul
 
     return num_correct / num_subsets
 
+def compute_weighted_sc(solution_scores, predicted_solutions, gt_answer, num_solutions):
+    # Convert inputs to numpy arrays for faster operations
+    solution_scores = np.array(solution_scores)
+    
+    # Pre-process invalid answers once
+    # invalid_mask = np.array(['invalidanswer' in sol for sol in predicted_solutions])
+    invalid_mask = np.array([is_invalid_answer(sol) for sol in predicted_solutions])
+    solution_scores[invalid_mask] = 0
+    
+    # Pre-allocate array for successes
+    num_reps = 25
+    successes = np.zeros(num_reps)
+    total_num_solutions = len(solution_scores)
+    
+    # Generate all random samples at once
+    all_samples = np.array([random.sample(range(total_num_solutions), num_solutions) 
+                           for _ in range(50)])
+    
+    for i in range(num_reps):
+        sampled_idxs = all_samples[i]
+        sampled_predictions = [predicted_solutions[idx] for idx in sampled_idxs]
+        sampled_scores = solution_scores[sampled_idxs]
+        
+        # Use a faster dictionary accumulation
+        weighted_predictions = {}
+        for pred, score in zip(sampled_predictions, sampled_scores):
+            weighted_predictions[pred] = weighted_predictions.get(pred, 0) + score
+            
+        # Handle invalid answer case
+        weighted_predictions['[invalidanswer]'] = -1
+        weighted_predictions[''] = -1
+        
+        # Find prediction with highest rating
+        predicted_solution = max(weighted_predictions, key=weighted_predictions.get)
+        successes[i] = get_solution_correctness(predicted_solution, gt_answer)
+    
+    return float(np.mean(successes))
+
+def is_invalid_answer(answer):
+    return (answer == '') or (answer == None)
+
 def majority_vote(answers: List[str], grading_results, k, num_subsets) -> str:
+    # no_answer_mask = np.array([is_invalid_answer(sol) for sol in answers])
+    # answers = np.array(answers)
+    # grading_results = np.array(grading_results)
+    # answers = answers[~no_answer_mask]
+    # grading_results = grading_results[~no_answer_mask]
+    # answers = list(answers)
+
     if k > len(grading_results):
         print("Warning: k is larger than the number of answers. Setting k to the number of answers.")
         k = len(grading_results)
@@ -135,6 +199,11 @@ def majority_vote(answers: List[str], grading_results, k, num_subsets) -> str:
     for _ in range(num_subsets):
         subset_indices = np.random.choice(len(grading_results), size=k, replace=False)
         answers_subset = answers_np[subset_indices]
+        no_answer_mask = np.array([is_invalid_answer(sol) for sol in answers_subset])
+        answers_subset = answers_subset[~no_answer_mask]
+        if len(answers_subset) == 0:
+            continue
+
         majority_answer, _ = Counter(answers_subset).most_common(n=1)[0]
         majority_answer_index = answers.index(majority_answer)
         majority_answer_is_correct = grading_results[majority_answer_index]
@@ -147,13 +216,15 @@ def powers_of_2_less_than(n):
     return [2 ** i for i in range(int(math.log2(n)) + 1)]
 
 def estimate_token_count_at_k(predictions, token_count, top_k):
-    min_solutions = min([len(sol) for sol in predictions]) 
-    ks = powers_of_2_less_than(min_solutions-1)
-    return {f"token_count@{k}":  (k/top_k)*token_count for k in ks}
+    num_solutions = top_k
+    ks = powers_of_2_less_than(num_solutions-1)
+    ks.append(num_solutions-1)
+    return {f"token_count@{k}": (k/top_k)*token_count for k in ks}
 
 def estimate_time_at_k(predictions, time, top_k):
-    min_solutions = min([len(sol) for sol in predictions]) 
-    ks = powers_of_2_less_than(min_solutions-1)
+    num_solutions = top_k
+    ks = powers_of_2_less_than(num_solutions-1)
+    ks.append(num_solutions-1)
     return {f"time@{k}":  (k/top_k)*time for k in ks}
 
 def evaluate_predictions(predictions: List[List[str]] = None, references : Any = None, all_scores = None, args = None) -> Dict[str, float]:
@@ -171,14 +242,17 @@ def evaluate_predictions(predictions: List[List[str]] = None, references : Any =
 
     ### filter those that only have 1 solution ###
     predictions = list(filter(lambda sol: len(sol) > 1, predictions))
+    max_solutions = min([len(sol) for sol in predictions])
+    print(f"Max solutions: {max_solutions}")
     min_solutions = min([len(sol) for sol in predictions])
     print(f"Min solutions: {min_solutions}")
     print([len(sol) for sol in predictions])
-    ks = powers_of_2_less_than(min_solutions-1)
-    ns = powers_of_2_less_than(min_solutions-1)
+    num_solutions = args.top_k
+    ks = powers_of_2_less_than(num_solutions-1)
+    ns = powers_of_2_less_than(num_solutions-1)
 
-    ks.append(min_solutions-1)
-    ns.append(min_solutions-1)
+    ks.append(num_solutions-1)
+    ns.append(num_solutions-1)
 
 
     for idx, (solution_candidates, ref) in enumerate(zip(predictions, references)):
@@ -191,7 +265,7 @@ def evaluate_predictions(predictions: List[List[str]] = None, references : Any =
                 for sol in solution_candidates
             ]
             none_answer_extracted.append(
-                sum([1 for ans in answer_candidates if ans is None])
+                sum([1 for ans in answer_candidates if ans == ''])
                 / len(answer_candidates)
             )
 
@@ -199,14 +273,19 @@ def evaluate_predictions(predictions: List[List[str]] = None, references : Any =
                 grade_answer(given_answer=ans, ground_truth=gold_answer, item=ref)
                 for ans in answer_candidates
             ]
-        elif args.dataset == "math":
-            gold_answer = ref["answer"]
+        elif "math" in args.dataset or "aime" in args.dataset:
+            if "answer" in ref:
+                gold_answer = ref["answer"]
+            else:
+                sol = ref["solution"]
+                gold_answer = extract_answer_math_parser(sol, data_name = "math")
+
             answer_candidates = [
                 extract_answer_math_parser(sol, data_name = "math")
                 for sol in solution_candidates
             ]
             none_answer_extracted.append(
-                sum([1 for ans in answer_candidates if ans is None])
+                sum([1 for ans in answer_candidates if ans == ''])
                 / len(answer_candidates)
             )
             grading_results = [
@@ -228,18 +307,33 @@ def evaluate_predictions(predictions: List[List[str]] = None, references : Any =
             for ans in answer_candidates
         ]
 
-        majority_vote_acc[idx] = {
-            k: majority_vote(answer_candidates, grading_results, k, num_subsets=100) for k in ks
-        }
+        majority_vote_acc[idx] = {}
+        for k in ks:
+            if k >= len(grading_results):
+                num_maj_vote = len(grading_results) - 1
+            else:
+                num_maj_vote = k
+            majority_vote_acc[idx][k] = majority_vote(answer_candidates, grading_results, num_maj_vote, num_subsets=100)
 
         for aggregator in all_scores[0][0].keys():
             prob = [all_scores[idx][i][aggregator] for i in range(len(all_scores[idx]))] # get the verifier scores for this problem and aggregator
-            weighted_majority_vote_acc[aggregator][idx] = {
-                k: weighted_majority_vote(answer_candidates, prob, grading_results, k, num_subsets=100) for k in ks
-            }
-            best_of_n_acc[aggregator][idx] = {
-                n: estimate_verifier_at_n(grading_results, prob, n) for n in ns
-            }
+            # weighted majority vote
+            weighted_majority_vote_acc[aggregator][idx] = {}
+            for k in ks:
+                if k >= len(grading_results):
+                    num_weighted_maj_vote = len(grading_results) - 1
+                else:
+                    num_weighted_maj_vote = k
+                weighted_majority_vote_acc[aggregator][idx][k] = weighted_majority_vote(answer_candidates, prob, grading_results, num_weighted_maj_vote, num_subsets=100)
+
+            # best of n
+            best_of_n_acc[aggregator][idx] = {}
+            for n in ns:
+                if n >= len(grading_results):
+                    num_best_of_n = len(grading_results) - 1
+                else:
+                    num_best_of_n = n
+                best_of_n_acc[aggregator][idx][n] = estimate_verifier_at_n(grading_results, prob, num_best_of_n, num_subsets=100)
 
 
         unique_answer_count.append(len(set(answer_candidates)))

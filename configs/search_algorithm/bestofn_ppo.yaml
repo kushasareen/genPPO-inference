@@ -1,11 +1,11 @@
 name: "bestofn_ppo"
 input_path: "/network/scratch/k/kusha.sareen/genPPO/data/math/test"
-policy_model: "/home/mila/k/kusha.sareen/scratch/genPPO/qwen_genPPO_0.3" # edit ckpt
-reward_model: "/home/mila/k/kusha.sareen/scratch/genPPO/qwen_genPPO_0.3"
+policy_model: "/home/mila/k/kusha.sareen/scratch/genPPO/qwen_ppo" # edit ckpt
+reward_model: "/home/mila/k/kusha.sareen/scratch/genPPO/qwen_ppo"
 device: "cuda"
 max_depth: 10
-n: 50
-top_k: 50
+n: 4
+top_k: 4
 search_algorithm: "bestofn"
 use_async: true
 download_dir: "/network/scratch/k/kusha.sareen/cache"
@@ -21,6 +21,7 @@ ppo: true
 use_advantage: false
 ppo_prm_mode: "mean_step" # last, mean_all, mean_step
 orm_avg: true
-dataset: "gsm8k" # gsm8k or math
+dataset: "math128" # gsm8k or math
 seed: 0
 num_samples: -1
+id: ""

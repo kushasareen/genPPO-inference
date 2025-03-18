@@ -4,15 +4,7 @@ from tree import Tree, TreeNode
 import numpy as np
 import random
 import asyncio
-
-def is_terminal(node):
-    if 'The answer is' in node.state['text']:
-        return True
-    if 'The final answer is' in node.state['text']:
-        return True
-    if '####' in node.state['text']:
-        return True
-    return False
+from search_algorithms.is_terminal import is_terminal
 
 class BeamSearchTree(Tree):
     """
@@ -20,12 +12,13 @@ class BeamSearchTree(Tree):
     at each depth level based on their cumulative value.
     """
 
-    def __init__(self, root: TreeNode, beam_width: int, beam_size: int, top_k: int = None, use_advantage: bool = False):
+    def __init__(self, root: TreeNode, beam_width: int, beam_size: int, top_k: int = None, use_advantage: bool = False, eos_token: Optional[int] = None):
         super().__init__(root)  # Initialize the base Tree with the root
         self.beam_size = beam_size  # Maximum number of nodes to retain per level
         self.beam_width = beam_width
         self.top_k = top_k  # Number of top-K solutions to return
         self.use_advantage = use_advantage
+        self.eos_token = eos_token
 
     async def search(self, generate_children: Callable[[Any], List[TreeNode]], max_depth: int) -> List[TreeNode]:
         """
@@ -51,7 +44,7 @@ class BeamSearchTree(Tree):
             for idx, node in enumerate(current_beam):
                 children = await generate_children(node, self.beam_width)
                 for child in children:
-                    if is_terminal(child):
+                    if is_terminal(child, self.eos_token):
                         terminal_nodes.append(child)
                     else:
                         next_beam.append(child)  # Add to the list of candidates for the next beam
@@ -71,7 +64,7 @@ class BeamSearchTree(Tree):
             current_beam = next_beam
 
         # Return the top-K nodes from the final beam
-        if len(terminal_nodes) == 0:
-            return heapq.nlargest(self.top_k, terminal_nodes + current_beam, key=lambda n: n.score)
+        if len(terminal_nodes) < self.top_k:
+            return heapq.nlargest(self.top_k, current_beam + terminal_nodes, key=lambda n: n.score)
  
-        return heapq.nlargest(self.top_k, terminal_nodes + current_beam, key=lambda n: n.score)
+        return heapq.nlargest(self.top_k, terminal_nodes, key=lambda n: n.score)
