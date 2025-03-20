@@ -10,10 +10,10 @@ num_jobs = 0
 # scripts = ['run_unkill.sh', 'run_main.sh', 'run_main.sh', 'run.sh', 'run.sh']
 
 # scripts = ['run_main.sh'] + ['run.sh'] * 10
-scripts = ['run_main.sh', 'run_main.sh'] + ['run.sh'] * 10
+# scripts = ['run_main.sh', 'run_main.sh'] + ['run.sh'] * 10
 # scripts = ['run.sh'] *  10
 
-for model in ['qwen_ppo']:
+for model in ['qwen_ppo_new']:
     # for dataset in ['math128', 'aime']:
     for dataset in ['math128']:
     # for dataset in ['aime']:
@@ -27,14 +27,14 @@ for model in ['qwen_ppo']:
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        K_max = 512
+        K_max = 64
         k = 2 # 2?
 
         # run.sh should set both n and top_k to k and set both model paths to the right thing and have the correct args
 
         # QUEUE Sampling
         search_alg = 'bestofn_ppo'
-        script = scripts[num_jobs % len(scripts)]
+        script = 'run_ppo.sh'
         # if model == 'qwen_ppo':
         #     script = 'run_ppo.sh'
         #     search_alg = 'bestofn_qwen_ppo'

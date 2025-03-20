@@ -19,7 +19,11 @@ from reward_model import PPOVerifier
 import numpy as np
 from generator import run_async_inference
 import uuid
+from transformers import AutoModelForCausalLM
+import torch
 import re
+
+device = "cuda"
 
 @hydra.main(version_base = None, config_path="configs", config_name="default")
 def main(cfg):  
@@ -36,28 +40,32 @@ def main(cfg):
                     seed = args.seed,
                     )
             )
+    head = torch.nn.Linear(151936, 1)
+    head.load_state_dict(torch.load(args.policy_model + "/head.pth"))
+    head.eval()
     tokenizer = asyncio.run(llm.get_tokenizer())
+    reward_llm = AutoModelForCausalLM.from_pretrained(
+            args.reward_model, torch_dtype=torch.bfloat16, device_map=device
+        )
     stop_words = [tokenizer.eos_token if tokenizer is not None and tokenizer.eos_token is not None else '</s>']
     print("Stop words: ", stop_words)
     print("Max tokens: ", args.max_tokens)
     sampling_params = SamplingParams(temperature=args.generation_temp, max_tokens=args.max_tokens, stop=stop_words, include_stop_str_in_output=True)
     verification_sampling_params = SamplingParams(temperature=args.verification_temp, max_tokens=1, logprobs=20)
-    asyncio.run(run_inference(llm, None, sampling_params, verification_sampling_params, dataset, tokenizer, args))
+    asyncio.run(run_inference(llm, head, reward_llm, sampling_params, verification_sampling_params, dataset, tokenizer, args))
     
 
-async def run_inference(llm, reward_model, sampling_params, verification_sampling_params, dataset, tokenizer, args):
+async def run_inference(llm, head, reward_llm, sampling_params, verification_sampling_params, dataset, tokenizer, args):
     start = time.time()
 
     num_samples = get_num_samples(args, dataset)
     all_preds = []
     all_different_scores = []
 
-    yes_token_id = tokenizer.convert_tokens_to_ids('Yes')
-
     for i in range(num_samples):
         question = get_question(dataset, i, args)
         # question_prompt = "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\n" + question + "\n\nPlease reason step by step, and put your final answer within \\boxed{{}}.<|im_end|>\n<|im_start|>assistant\n"
-        question_prompt = f"\n<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\n{question}<|im_end|>\n<|im_start|>assistant\n"
+        question_prompt = f"<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\n{question}<|im_end|>\n<|im_start|>assistant\n"
         prompts = [question_prompt] * args.top_k
         tasks = [asyncio.create_task(run_async_inference(llm, sampling_params, prompt, uuid.uuid4())) for prompt in prompts]
         responses = [await task for task in tasks]
@@ -66,29 +74,15 @@ async def run_inference(llm, reward_model, sampling_params, verification_samplin
         all_preds.append(responses_text)
 
         verification_prompts = [f"{question_prompt}{response}{args.verification_question}" for response in responses_text]
-        # breakpoint()
-        tasks = [asyncio.create_task(run_async_inference(llm, verification_sampling_params, prompt, uuid.uuid4())) for prompt in verification_prompts]
-        verification_responses = [await task for task in tasks]
-        scores = []
-        for response in verification_responses:
-            if len(response.outputs) == 0 or len(response.outputs[0].logprobs) == 0:
-                score = -100.0
-
-            try:
-                first_output = response.outputs[0].logprobs[0]
-                if yes_token_id in first_output:
-                    score = first_output[yes_token_id].logprob
-                else: 
-                    score = -100.0
-            except:
-                print("Warning: Exception occurred while calculating score")
-                score = -100.0
-
-            scores.append({"last": np.exp(score)})
+        # pass into reward llm to get logits using huggingface
+        verification_inputs = tokenizer(verification_prompts, return_tensors="pt", padding=True, truncation=True, max_length=2048)
+        logits = reward_llm(**verification_inputs).logits
+        head_logits = head(logits).squeeze()
+        scores = head_logits.cpu().numpy()
+        breakpoint()
 
         all_different_scores.append(scores)
         print(f"Problem {i + 1} of {num_samples} done")
-        breakpoint()
         gc.collect()
 
     time_taken = time.time() - start

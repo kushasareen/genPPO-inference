@@ -9,8 +9,8 @@ num_jobs = 0
 # scripts = ['run_unkill.sh', 'run_main.sh', 'run.sh', 'run.sh']
 # scripts = ['run_unkill.sh', 'run_main.sh', 'run_main.sh', 'run.sh', 'run.sh']
 
-# scripts = ['run_main.sh'] + ['run.sh'] * 10
-scripts = ['run_main.sh', 'run_main.sh'] + ['run.sh'] * 10
+scripts = ['run_main.sh'] + ['run.sh'] * 10
+# scripts = ['run_main.sh', 'run_main.sh'] + ['run.sh'] * 10
 # scripts = ['run.sh'] *  10
 
 # for model in ['qwen_ORM_4', 'qwen_ORM_8', 'qwen_ORM_16', 'qwen_ORM_1', 'qwen_ORM_2']:
@@ -25,10 +25,14 @@ scripts = ['run_main.sh', 'run_main.sh'] + ['run.sh'] * 10
 # for model in ['grpo_scot_math_1_clf_3e-4__42']:
 # for model in ['grpo_scot_math_1_sft_2e-4__42']:
 # for model in ['grpo_scot_math_1_clf_1.5e-4__42']:
-for model in ['grpo_scot_math_1_clf_3e-4__42']:
-    # for dataset in ['math128', 'aime']:
-    for dataset in ['math128']:
+K_dict = {'math128': 256, 'math500': 128, 'aime': 1024}
+
+for model in ['grpo_scot_math_0.5_sft_2e-5__42', 'grpo_scot_math_0.5_sft_4e-5__42', 'grpo_scot_math_0_sft_2e-4__42']:
+# for model in ['grpo_scot_math_0.5_sft_9e-4__42', 'grpo_scot_math_0.5_sft_5e-4__42', 'grpo_scot_math_1_sft_5e-4__42']:
+    # for dataset in ['math500']:
+    # for dataset in ['math128']:
     # for dataset in ['aime']:
+    for dataset in ['math128', 'math500', 'aime']:
         dataset_path = "None"
         # model_path = f'/home/mila/k/kusha.sareen/scratch/genPPO/{model}'
         model_path = f'/home/mila/k/kusha.sareen/scratch/genPPO/nano_reasoning/nano_outputs/{model}/model'
@@ -42,7 +46,8 @@ for model in ['grpo_scot_math_1_clf_3e-4__42']:
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        K_max = 512
+        K_max = K_dict[dataset]
+        # K_max = 64
         k = 2 # 2?
 
         # run.sh should set both n and top_k to k and set both model paths to the right thing and have the correct args
