@@ -1,0 +1,28 @@
+name: "rebase_math_ppo"
+input_path: "/network/scratch/k/kusha.sareen/genPPO/data/math/test"
+policy_model: "/home/mila/k/kusha.sareen/scratch/genPPO/qwen_ppo" # edit ckpt
+reward_model: "/home/mila/k/kusha.sareen/scratch/genPPO/qwen_ppo"
+device: "cuda"
+max_depth: 20
+top_k: 3 # top k is the initial budget for rebase
+n: 3
+expansion_temp: 0.1 # from rebase paper
+search_algorithm: "rebase"
+use_async: true
+download_dir: "/network/scratch/k/kusha.sareen/cache"
+generation_temp: 0.7 # 0.35
+verification_temp: 1.0
+aggregator: "last" # min or sum or last
+max_tokens: 512
+verification_question: "\nIs the solution likely to result in the correct answer (Yes/No)?\n"
+log_all_scores: true
+output_path: "/home/mila/k/kusha.sareen/scratch/genPPO/outputs"
+llm_as_judge: false
+ppo: true
+ppo_prm_mode: "mean_step" # last, mean_all, mean_step
+use_advantage: true
+orm_avg: true
+dataset: "math" # gsm8k or math
+seed: 0
+num_samples: -1
+id: ""

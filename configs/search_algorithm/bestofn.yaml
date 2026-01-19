@@ -1,0 +1,26 @@
+name: "bestofn"
+input_path: "/network/scratch/k/kusha.sareen/genPPO/data/gsm8k/test"
+policy_model: "ReasoningMila/genppo_init_ckpt" # ReasoningMila/vineppo_baseline_ckpt
+reward_model: "ReasoningMila/genppo_init_ckpt" # ReasoningMila/vineppo_baseline_ckpt
+device: "cuda"
+max_depth: 20
+n: 150
+top_k: 150
+search_algorithm: "bestofn"
+use_async: true
+download_dir: "/network/scratch/k/kusha.sareen/cache"
+generation_temp: 0.7 # 0.35
+verification_temp: 1.0
+aggregator: "sum" # sum or min or last or all
+max_tokens: 512
+verification_question: "\nIs the solution likely to result in the correct answer (Yes/No)?\n"
+log_all_scores: true
+output_path: "/home/mila/k/kusha.sareen/scratch/genPPO/outputs"
+llm_as_judge: false
+ppo: false
+use_advantage: false
+orm_avg: false
+dataset: "gsm8k" # gsm8k or math
+seed: 0
+num_samples: -1
+id: ""

@@ -1,76 +1,104 @@
 import argparse
-import os
 import gc
-from generator import NodeGenerator
 from reward_model import GenVinePPOVerifier
-from search_algorithms.beam_search import BeamSearchTree
 from tree import TreeNode
-from verify_gsm8k import evaluate_predictions
+from verify_gsm8k import evaluate_predictions, estimate_token_count_at_k, estimate_time_at_k
 import time
-from verify_gsm8k import extract_gold_answer_from_text
-from utils import get_search_tree_and_generator, load_dataset, load_model
+from utils import get_search_tree_and_generator, load_inference_dataset, load_model, save_results, get_reward_model, load_ppo_model, get_all_models, get_ppo_avg_orm_score, get_question, log_everything, parse_top_nodes, log_solution, get_num_samples, get_prompt, get_task, log_args
 import asyncio
+import hydra
+import numpy as np
+from omegaconf import OmegaConf
+from eval import run_evals
+import os
 
-def main(args):  
-    dataset = load_dataset(args)
-    llm, sampling_params, stop_tokens, tokenizer = load_model(args.policy_model, args)
-    reward_model = GenVinePPOVerifier(args, llm, tokenizer)
+@hydra.main(version_base = None, config_path="configs", config_name="default")
+def main(cfg):  
+    args = cfg.search_algorithm
+    print(args)
+    dataset = load_inference_dataset(args)
+    llm, sampling_params, reward_model, tokenizer = get_all_models(args)
+    if args.use_async:
+        asyncio.run(run_inference(llm, reward_model, sampling_params, dataset, tokenizer, args))
+    else:
+        # open folder corresponding to the current run and read status.txt to get the start_sample
+        # need to open tokens_so_far.txt and read the last line to get the tokens_so_far
+        # load args from somewhere?
+        # if args.folder_name is not set:
+        #     folder_name = time.strftime("%Y%m%d-%H%M%S") + "_" + args.name
+        #     args.folder_name = folder_name
+        #     path = f"/home/mila/k/kusha.sareen/scratch/genPPO/evals/{args.folder_name}"
+        #     os.makedirs(path, exist_ok=True)
+
+        # reward_model.token_count = 0
+        start_sample = 0
+        print("Starting from sample: ", start_sample)
+        asyncio.run(run_inference_sync(llm, reward_model, sampling_params, dataset, args, start_sample=start_sample))
+
+
+async def run_inference(llm, reward_model, sampling_params, dataset, tokenizer, args):
     start = time.time()
-    asyncio.run(run_inference(llm, reward_model, sampling_params, dataset, args))
-    end = time.time()
-    print("Time: ", end - start)
-
-
-async def run_inference(llm, reward_model, sampling_params, dataset, args):
-    all_gts = []
-    all_preds = []
-    all_top_results = []
-    tasks = []
-
-    for i in range(len(dataset)):
-        print(f"Test case: ", i)
-        sample = dataset[i]
-        question = sample['question']
-        answer = sample['answer']
-        all_gts.append(answer) 
-        prompt = "Problem:\n" + question + '\nSolution:\n'
-        root = TreeNode(state = {'text' : prompt, 'logprob' : 0, 'token' : '', 'step_solution' : '', 'full_feedback' : ''}, 
-                        score = 0, parent = None, depth = 0) 
-        tree, node_generator = get_search_tree_and_generator(root, llm, reward_model, sampling_params, args)
-
-        tasks.append(asyncio.create_task(tree.search(generate_children=node_generator, max_depth=args.max_depth)))
-        gc.collect()
-
+    
+    tasks, node_generator = collect_tasks(args, dataset, llm, reward_model, sampling_params, tokenizer)
     all_top_nodes = [await task for task in tasks]
 
-    for top_nodes in all_top_nodes:
-        predictions = [node.state['text'] for node in top_nodes]
-        all_preds.append(predictions)
-        all_top_results.append(top_nodes[0])
+    time_taken = time.time() - start
+    total_tokens = node_generator.token_count + reward_model.token_count
+    all_preds, all_different_scores = await parse_top_nodes(args, all_top_nodes, reward_model)
 
-    print("\n**** Evaluating ****")
-    results = evaluate_predictions(all_preds, dataset)
+    # print("All preds: ", all_preds)
+    log_everything(all_preds, all_different_scores, time_taken, all_top_nodes, total_tokens, args)
+    run_evals(all_preds, all_different_scores, time_taken, total_tokens, args)
 
-    print("\n**** Results ****")
-    print(results)
+
+def collect_tasks(args, dataset, llm, reward_model, sampling_params, tokenizer):
+    tasks = []
+    num_samples = get_num_samples(args, dataset)
+    _, node_generator = get_search_tree_and_generator(None, llm, reward_model, sampling_params, tokenizer, args)
+    
+    for i in range(num_samples):
+        question = get_question(dataset, i, args)
+        prompt = get_prompt(question, args)
+        root = TreeNode(state = {'text' : prompt, 'logprob' : 0, 'token' : '', 'step_solution' : '', 'full_feedback' : ''}, 
+                        score = 0, parent = None, depth = 0, all_scores = {"sum": 0, "min": 0, "last": 0} if args.log_all_scores else {args.aggregator: 0}) # 0 = 1 for logprobs
+        tree, _ = get_search_tree_and_generator(root, llm, reward_model, sampling_params, tokenizer, args)
+        tasks.append(asyncio.create_task(get_task(tree, root, node_generator, args)))
+        gc.collect()
+
+    return tasks, node_generator
+
+async def run_inference_sync(llm, reward_model, sampling_params, dataset, args, start_sample = 0):
+    start = time.time()
+    
+    num_samples = get_num_samples(args, dataset)
+    all_top_nodes = []
+
+    for i in range(start_sample, num_samples):
+        question = get_question(dataset, i, args)
+        prompt = get_prompt(question, args)
+        root = TreeNode(state = {'text' : prompt, 'logprob' : 0, 'token' : '', 'step_solution' : '', 'full_feedback' : ''}, 
+                        score = 0, parent = None, depth = 0, all_scores = {"sum": 0, "min": 0, "last": 0} if args.log_all_scores else {args.aggregator: 0}) # 0 = 1 for logprobs
+        
+        tree, node_generator = get_search_tree_and_generator(root, llm, reward_model, sampling_params, args)
+
+        top_nodes = await get_task(tree, root, node_generator, args)
+        all_top_nodes.append(top_nodes)
+        current_tokens = node_generator.token_count + reward_model.token_count
+        log_solution(i, top_nodes, num_samples, current_tokens, args)
+        gc.collect()
+
+    
+    time_taken = time.time() - start
+    total_tokens = node_generator.token_count + reward_model.token_count
+    log_args(args)
+    all_preds, all_different_scores = await parse_top_nodes(args, all_top_nodes, reward_model)
+    run_evals(all_preds, all_different_scores, time_taken, total_tokens, args)
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--input_path", type = str, default = '/network/scratch/k/kusha.sareen/genPPO/data/gsm8k/test')
-    parser.add_argument("--policy_model", type = str, default = 'ReasoningMila/genppo_init_ckpt')
-    parser.add_argument("--reward_model", type = str, default = 'ReasoningMila/genppo_init_ckpt')
-    parser.add_argument('--device', default="cuda")
-    parser.add_argument('--beam_size', type=int, default=4)
-    parser.add_argument('--max_depth', type=int, default=10)
-    parser.add_argument('--beam_width', type=int, default=4)
-    parser.add_argument('--n', type=int, default=4)
-    parser.add_argument('--search_algorithm', type=str, default='beamsearch')
-    parser.add_argument('--use_async', type=bool, default=True)    
-
-    args = parser.parse_args()
 
     try:
-        main(args)
+        main()
         gc.collect()
     except ValueError as e:
         print(e)

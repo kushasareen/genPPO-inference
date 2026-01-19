@@ -17,18 +17,48 @@ async def run_async_inference(engine, sampling_params, prompt, id):
     
     return responses
 
-
-class NodeGenerator:
-    def __init__(self, policy, reward_model, num_children, sampling_params):
+class Generator:
+    def __init__(self, policy, reward_model, num_children, sampling_params, args):
         self.policy = policy
         self.reward_model = reward_model
         self.num_children = num_children
         self.sampling_params = sampling_params
-    
-    async def __call__(self, node):
+        self.aggregator = args.aggregator
+        self.log_all_scores = args.log_all_scores
+        self.token_count = 0
+        self.args = args
+
+    def get_score(self, parent_score, logprob):
+        if self.aggregator == 'sum':
+            return parent_score + logprob
+        elif self.aggregator == 'min':
+            return min(parent_score, logprob)
+        elif self.aggregator == 'last':
+            return logprob
+        else:
+            raise ValueError(f"Aggregator not implemented: {self.aggregator}")
+        
+    def get_all_scores(self, parent_score, logprob):
+        return {"sum": parent_score["sum"] + logprob, "min": min(parent_score["min"], logprob), "last": logprob}
+
+
+class NodeGenerator(Generator):  
+    async def __call__(self, node, width = None):
+        if width is None: #TODO: clean this up later
+            if self.num_children is None:
+                raise ValueError("expansion width must be specified")
+            width = self.num_children
+            
+        if width == 0:
+            return []
+
+
         prompt = node.state['text']
-        batch_prompt = [prompt] * self.num_children
+        batch_prompt = [prompt] * width
         responses = run_inference(self.policy, self.sampling_params, batch_prompt)
+        for response in responses:
+            self.token_count += len(response.outputs[0].token_ids)
+
         all_children = []
         solutions = [candidate.outputs[0].text for candidate in responses]
         logprobs, tokens, full_feedbacks = await self.reward_model(prompt, solutions) 
@@ -36,37 +66,42 @@ class NodeGenerator:
             text = prompt + solution + '\n'
             child = TreeNode(state = {'text' : text, 'logprob' : logprob, 'token' : token, 'step_solution' : solution, 
                                       'full_feedback': full_feedback}, 
-                             score = logprob, 
-                            parent = node, depth = 0)
+                             score = self.get_score(node.score, logprob),
+                            parent = node, depth = 0, all_scores = self.get_all_scores(node.all_scores, logprob) if self.log_all_scores else {self.aggregator: self.get_score(node.score, logprob)})
             all_children.append(child)
         return all_children
 
-class AsyncNodeGenerator:
-    def __init__(self, policy_engine, reward_model, num_children, sampling_params):
-        self.policy_engine = policy_engine
-        self.reward_model = reward_model
-        self.num_children = num_children
-        self.sampling_params = sampling_params
+class AsyncNodeGenerator(Generator):
+    async def __call__(self, node, width = None):
+        if width is None: #TODO: clean this up later
+            if self.num_children is None:
+                raise ValueError("expansion width must be specified")
+            width = self.num_children
 
-    async def __call__(self, node):
+        if width == 0:
+            return []
+
         prompt = node.state['text']
-        batch_prompt = [prompt] * self.num_children
+        batch_prompt = [prompt] * width
 
         tasks = []
 
         for prompt in batch_prompt:
-            tasks.append(asyncio.create_task(run_async_inference(self.policy_engine, self.sampling_params, prompt, uuid.uuid4())))
+            tasks.append(asyncio.create_task(run_async_inference(self.policy, self.sampling_params, prompt, uuid.uuid4())))
 
         responses = [await task for task in tasks]
+        for response in responses:
+            self.token_count += len(response.outputs[0].token_ids)
 
         all_children = []
         solutions = [candidate.outputs[0].text for candidate in responses]
         logprobs, tokens, full_feedbacks = await self.reward_model(prompt, solutions) 
+
         for (solution, logprob, token, full_feedback) in zip(solutions, logprobs, tokens, full_feedbacks):
             text = prompt + solution + '\n'
             child = TreeNode(state = {'text' : text, 'logprob' : logprob, 'token' : token, 'step_solution' : solution, 
                                       'full_feedback': full_feedback}, 
-                             score = logprob, 
+                             score = self.get_score(node.score, logprob), all_scores = self.get_all_scores(node.all_scores, logprob) if self.log_all_scores else {self.aggregator: self.get_score(node.score, logprob)},
                             parent = node, depth = 0)
             all_children.append(child)
         return all_children

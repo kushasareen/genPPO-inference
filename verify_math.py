@@ -33,12 +33,10 @@ def _fix_fracs(string):
         substrs = substrs[1:]
         for substr in substrs:
             new_str += "\\frac"
-            if substr[0] == "{":
+            if substr and substr[0] == "{":  # Ensure substr is non-empty
                 new_str += substr
             else:
-                try:
-                    assert len(substr) >= 2
-                except:
+                if len(substr) < 2:  # Handle empty or too-short substrings safely
                     return string
                 a = substr[0]
                 b = substr[1]
@@ -89,6 +87,9 @@ def _fix_sqrt(string):
     splits = string.split("\\sqrt")
     new_string = splits[0]
     for split in splits[1:]:
+        if not split:  # Check if split is empty to prevent IndexError
+            new_string += "\\sqrt"
+            continue
         if split[0] != "{":
             a = split[0]
             new_substr = "\\sqrt{" + a + "}" + split[1:]
@@ -96,7 +97,6 @@ def _fix_sqrt(string):
             new_substr = "\\sqrt" + split
         new_string += new_substr
     return new_string
-
 
 def _strip_string(string):
     # linebreaks
@@ -382,7 +382,7 @@ def split_tuple(expr: str):
     return elems
 
 
-def grade_answer(given_answer: str, ground_truth: str) -> bool:
+def grade_answer_math(given_answer: str, ground_truth: str) -> bool:
     """
     The answer will be considered correct if:
     (a) it normalizes to the same string as the ground truth answer
@@ -492,7 +492,7 @@ def remove_boxed(s):
 def extract_answer_by_box(prediction):
     return remove_boxed(last_boxed_only_string(prediction))
 
-def extract_answer(prediction):
+def extract_answer_math(prediction):
     pattern = r"The answer is: ([^$]*)"
     #pattern = r"$\boxed{$([^$]*)\}.$"
     match = re.findall(pattern, prediction)
@@ -526,5 +526,5 @@ def extract_answer(prediction):
 
 
 def exact_match_score(prediction, ground_truth):
-    prediction = extract_answer(prediction)
-    return grade_answer(prediction, ground_truth)
+    prediction = extract_answer_math(prediction)
+    return grade_answer_math(prediction, ground_truth)

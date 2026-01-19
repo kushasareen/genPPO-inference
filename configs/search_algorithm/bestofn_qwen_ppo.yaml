@@ -1,0 +1,27 @@
+name: "bestofn_qwen_ppo"
+input_path: "/network/scratch/k/kusha.sareen/genPPO/data/math/test"
+policy_model: "/home/mila/k/kusha.sareen/scratch/genPPO/qwen_ppo" # edit ckpt
+reward_model: "/home/mila/k/kusha.sareen/scratch/genPPO/qwen_ppo"
+device: "cuda"
+max_depth: 20
+n: 100
+top_k: 100
+search_algorithm: "bestofn"
+use_async: true
+download_dir: "/network/scratch/k/kusha.sareen/cache"
+generation_temp: 0.7 # 0.35
+verification_temp: 1.0
+aggregator: "min" # min or sum or last
+max_tokens: 512
+verification_question: "\nIs the solution likely to result in the correct answer (Yes/No)?\n"
+log_all_scores: true
+output_path: "/home/mila/k/kusha.sareen/scratch/genPPO/outputs"
+llm_as_judge: false
+ppo: true
+ppo_prm_mode: "mean_step" # last, mean_all, mean_step
+use_advantage: false
+orm_avg: true
+dataset: "math" # gsm8k or math
+seed: 0
+num_samples: -1
+id: ""

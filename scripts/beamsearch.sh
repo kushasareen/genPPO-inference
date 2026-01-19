@@ -1,23 +1,24 @@
 #!/bin/bash
+k=32
 beam_size=4
 beam_width=4
-max_depth=10
-input_path='/network/scratch/k/kusha.sareen/genPPO/data/gsm8k/test'
-policy_model='ReasoningMila/genppo_init_ckpt'
-device='cuda'
-mode='beamsearch'
+max_depth=20
+temp=0.7
+mode='beamsearch_ckpt2'
 
-while getopts w:s:d flag
+while getopts w:k:s:t:d flag
 do
     case "${flag}" in
         w) beam_width=${OPTARG};;
+        k) k=${OPTARG};;
         s) beam_size=${OPTARG};;
         d) max_depth=${OPTARG};;
-        m) mode=${OPTARG};;
+        t) temp=${OPTARG};;
+
     esac
 done
 
-NAME="${mode}_s${beam_size}_w${beam_width}_d${max_depth}";
+NAME="${mode}_k${k}_s${beam_size}_w${beam_width}_d${max_depth}_t${temp}";
 echo $NAME
 sbatch <<EOT
 #!/bin/bash
@@ -36,7 +37,6 @@ conda activate genPPO
 
 unset CUDA_VISIBLE_DEVICES
 
-python3 main_gsm8k.py --input_path=$input_path --policy_model=$policy_model --reward_model=$reward_model \
-                        --device=$device --beam_size=$beam_size --beam_width=$beam_width --max_depth=$max_depth \
-                        --search_algorithm=$mode
+python3 main_gsm8k.py search_algorithm=$mode search_algorithm.beam_size=$beam_size search_algorithm.beam_width=$beam_width \
+                        search_algorithm.max_depth=$max_depth search_algorithm.top_k=$k
 EOT

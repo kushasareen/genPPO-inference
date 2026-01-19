@@ -1,0 +1,26 @@
+name: "bestofn_grpo"
+input_path: "/network/scratch/k/kusha.sareen/genPPO/data/math/test"
+policy_model: "/home/mila/k/kusha.sareen/scratch/genPPO/nano_reasoning/nano_outputs/grpo_math_0.1_42/model" # edit ckpt
+reward_model: "/home/mila/k/kusha.sareen/scratch/genPPO/nano_reasoning/nano_outputs/grpo_math_0.1_42/model"
+device: "cuda"
+max_depth: 20
+n: 4
+top_k: 4
+search_algorithm: "bestofn"
+use_async: true
+download_dir: "/network/scratch/k/kusha.sareen/cache"
+generation_temp: 0.7 # 0.35
+verification_temp: 1.0
+aggregator: "min" # min or sum or last
+max_tokens: 2048
+verification_question: "<|im_start|>user\nIs this solution correct (Yes/No)?<|im_end|>\n<|im_start|>assistant\n"
+log_all_scores: true
+output_path: "/home/mila/k/kusha.sareen/scratch/genPPO/outputs/simple_test_box"
+llm_as_judge: false
+ppo: false
+use_advantage: false
+orm_avg: false
+dataset: "math128" # gsm8k or math
+seed: 0
+num_samples: -1
+id: ""

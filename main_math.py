@@ -26,7 +26,7 @@ def load_model(model_name, args):
             enforce_eager=True) 
     tokenizer = llm.get_tokenizer()
     stop_words = [tokenizer.eos_token if tokenizer is not None and tokenizer.eos_token is not None else '</s>']
-    stop_words.append("ки")
+    stop_words.append("ки") # need to modify this
     sampling_params = SamplingParams(temperature=0.7, max_tokens=512, stop = stop_words) #stop_tokens=stop_tokens)
     return llm, sampling_params, stop_words
 

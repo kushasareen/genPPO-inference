@@ -7,7 +7,7 @@ import fcntl
 import os
 import math
 import threading
-from typing import List, Optional, Callable, Any
+from typing import List, Optional, Callable, Any, Dict
 
 
 def read_jsonl(path: str):
@@ -33,9 +33,11 @@ class TreeNode:
                  state: Any, 
                  score: float = 0.0, 
                  parent: Optional['TreeNode'] = None, 
-                 depth: int = 0):
+                 depth: int = 0,
+                 all_scores: Optional[Dict[str, float]] = None):
         self.state = state  # The state or data represented by this node
         self.score = score  # The value of this node (e.g., fitness or heuristic score) 
+        self.all_scores = all_scores  # All scores for different aggregation methods
         self.parent = parent  # A reference to the parent node
         self.depth = depth  # The depth of this node in the tree
         self.children: List['TreeNode'] = []  # List of child nodes

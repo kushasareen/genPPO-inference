@@ -1,0 +1,27 @@
+name: "rebase_rm"
+input_path: "/network/scratch/k/khang.ngo/gen_vineppo/data/gsm8k/test"
+policy_model: "ReasoningMila/vineppo_baseline_ckpt"
+reward_model: "peiyi9979/math-shepherd-mistral-7b-prm"
+device: "cuda"
+beam_size: 4
+max_depth: 10
+beam_width: 4
+top_k: 128 # top k is the initial budget for rebase
+expansion_temp: 0.1 # from rebase paper
+search_algorithm: "beamsearch"
+use_async: true
+download_dir: "/network/scratch/k/khang.ngo/cache"
+generation_temp: 0.7 # 0.35
+verification_temp: 1.0
+aggregator: "last" # min or sum or last
+max_tokens: 512
+verification_question: ""
+log_all_scores: true
+output_path: "/home/mila/k/khang.ngo/search_llm/genPPO-inference/outputs"
+llm_as_judge: false
+ppo: false
+use_advantage: false
+orm_avg: false
+dataset: "gsm8k" # gsm8k or math
+seed: 0
+num_samples: -1
